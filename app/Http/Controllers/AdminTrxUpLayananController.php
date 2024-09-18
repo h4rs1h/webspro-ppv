@@ -21,36 +21,37 @@ class AdminTrxUpLayananController extends Controller
     }
     public function index()
     {
-      //  dd($request);
+        //  dd($request);
         $role = Auth::user()->role;
-        return view('administrator.order.upgrade.index',[
-            'order' => TrxOrder::where('tipe_order','2')->get(),
+        return view('administrator.order.upgrade.index', [
+            'order' => TrxOrder::where('tipe_order', '2')->get(),
             'level' => $role,
             'title' => 'Data Upgrade Pelanggan',
         ]);
-
     }
 
     public function create()
     {
         $role = Auth::user()->role;
 
-        $internet = Layanan::where('jenis_layanan','Internet')->get();
-        $tv = Layanan::wherein('jenis_layanan',['tv','tv-tambahan'])->get();
-        $telepony = Layanan::where('jenis_layanan','telephony')->get();
-        $pasang = Layanan::where('id','10')->get();
+        $internet = Layanan::where('jenis_layanan', 'Internet')
+            ->where('aktif', '1')
+            ->get();
+        $tv = Layanan::wherein('jenis_layanan', ['tv', 'tv-tambahan'])->get();
+        $telepony = Layanan::where('jenis_layanan', 'telephony')->get();
+        $pasang = Layanan::where('id', '10')->get();
         $period = [
-			 ['id' =>'0','name' =>'Non Promo'],
-            ['id' =>'1','name' =>'Promo 6+2'],
-            ['id' =>'2','name' =>'Promo 9+3'],
-			 ['id' =>'3','name' =>'Promo 5+1'],
-            ];
+            ['id' => '0', 'name' => 'Non Promo'],
+            ['id' => '1', 'name' => 'Promo 6+2'],
+            ['id' => '2', 'name' => 'Promo 9+3'],
+            ['id' => '3', 'name' => 'Promo 5+1'],
+        ];
         $metode_bayar = [
-            ['id' =>'1','name' =>'Lunas'],
-            ['id' =>'2','name' =>'Bertahap (Cicilan)'],
-            ];
-        return view('administrator.order.upgrade.create',[
-          //  'order' => TrxOrder::all(),
+            ['id' => '1', 'name' => 'Lunas'],
+            ['id' => '2', 'name' => 'Bertahap (Cicilan)'],
+        ];
+        return view('administrator.order.upgrade.create', [
+            //  'order' => TrxOrder::all(),
             'level' => $role,
             'title' => 'Tambah Upgrade Layanan Pelanggan',
             'no_formulir' => TrxOrder::nomerUpgrade(),
@@ -63,97 +64,98 @@ class AdminTrxUpLayananController extends Controller
         ]);
     }
 
-    public function getTotal(Request $request){
-       // dd($request);
+    public function getTotal(Request $request)
+    {
+        // dd($request);
         $role = Auth::user()->role;
-        $internet = Layanan::where('jenis_layanan','Internet')->get();
-        $tv = Layanan::wherein('jenis_layanan',['tv','tv-tambahan'])->get();
-        $telepony = Layanan::where('jenis_layanan','telephony')->get();
-        $pasang = Layanan::where('id','10')->get();
+        $internet = Layanan::where('jenis_layanan', 'Internet')->get();
+        $tv = Layanan::wherein('jenis_layanan', ['tv', 'tv-tambahan'])->get();
+        $telepony = Layanan::where('jenis_layanan', 'telephony')->get();
+        $pasang = Layanan::where('id', '10')->get();
         $period = [
-			 ['id' =>'0','name' =>'Non Promo'],
-            ['id' =>'1','name' =>'Promo 6+2'],
-            ['id' =>'2','name' =>'Promo 9+3'],
-			 ['id' =>'3','name' =>'Promo 5+1'],
-            ];
+            ['id' => '0', 'name' => 'Non Promo'],
+            ['id' => '1', 'name' => 'Promo 6+2'],
+            ['id' => '2', 'name' => 'Promo 9+3'],
+            ['id' => '3', 'name' => 'Promo 5+1'],
+        ];
         $metode_bayar = [
-            ['id' =>'1','name' =>'Lunas'],
-            ['id' =>'2','name' =>'Bertahap (Cicilan)'],
-            ];
+            ['id' => '1', 'name' => 'Lunas'],
+            ['id' => '2', 'name' => 'Bertahap (Cicilan)'],
+        ];
 
         $validateData = $request->validate([
             'no_pelanggan' => 'required|max:20',
-             'tgl_rencana_upgrade' => 'required|date',
+            'tgl_rencana_upgrade' => 'required|date',
             'metode_bayar' => 'required',
             'no_formulir' => 'required',
             'tgl_order' => 'required',
             'jenis_promo' => 'required',
             'lama_cicilan' => 'required'
         ]);
-      //  dd($request);
+        //  dd($request);
         $hdrTrxOrder = ([
-            'no_order' => substr($request->no_formulir,0,4),
+            'no_order' => substr($request->no_formulir, 0, 4),
             'tipe_order' => '2',
             'no_formulir' => $request->no_formulir,
             'tgl_order' => $request->tgl_order,
             'pelanggan_id' => $request->pelanggan_id,
-            'tgl_rencana_belangganan' =>$request->tgl_rencana_upgrade,
+            'tgl_rencana_belangganan' => $request->tgl_rencana_upgrade,
             'tgl_target_instalasi' => $request->tgl_rencana_upgrade,
             'catatan_instalasi' => $request->catatan_instalasi,
-			'catatan1' => $request->catatan_request_pelanggan,
+            'catatan1' => $request->catatan_request_pelanggan,
             'metode_bayar' => $request->metode_bayar,
             'termin_bayar' => $request->lama_cicilan,
             'gtot_amount' => 0,
             'amount' => 0,
             'ppn_amount' => 0,
-			'upg_layanan' => '1',
+            'upg_layanan' => '1',
         ]);
         $hdrTrxOrder['user_id'] = auth()->user()->id;
         //Insert Header
-        $no_order = substr($request->no_formulir,0,4);
-        $cek = TrxOrder::where('no_order',$no_order)
-                        ->where('tipe_order','2')
-                        ->where('no_formulir',$request->no_formulir)
-                        ->count();
-        if($cek=='0'){
+        $no_order = substr($request->no_formulir, 0, 4);
+        $cek = TrxOrder::where('no_order', $no_order)
+            ->where('tipe_order', '2')
+            ->where('no_formulir', $request->no_formulir)
+            ->count();
+        if ($cek == '0') {
             $idOrder = TrxOrder::create($hdrTrxOrder)->id;
 
-            if(isset($request->ly_internet)){
-                    DB::table('trx_order_detail')->insert([
-                        [
-                            'trx_order_id' => $idOrder,
-                            'no_order' =>  $no_order,
-                            'line_no' => $request->line_no_1,
-                            'layanan_id' => $request->ly_internet,
-                            'amount' => $request->hrg_int,
-                            'qty' => $request->qty_int,
-                            'diskon' => $request->promo_int,
-                            'tax_amount' => (($request->hrg_int*$request->qty_int)-$request->promo_int)*0.11,
-                            'sub_amount' => $request->subt_int+((($request->hrg_int*$request->qty_int)-$request->promo_int)*0.11)
-                        ]
-                    ]);
-                }
-                if(isset($request->ly_tv)){
-                    DB::table('trx_order_detail')->insert([
-                        [
-                            'trx_order_id' => $idOrder,
-                            'no_order' =>  $no_order,
-                            'line_no' => $request->line_no_2,
-                            'layanan_id' => $request->ly_tv,
-                            'amount' => $request->hrg_tv,
-                            'qty' => $request->qty_tv,
-                            'diskon' => $request->promo_tv,
-                            'tax_amount' => (($request->hrg_tv*$request->qty_tv)-$request->promo_tv)*0.11,
-                            'sub_amount' => $request->subt_tv+((($request->hrg_tv*$request->qty_tv)-$request->promo_tv)*0.11)
-                        ]
-                    ]);
-                }
+            if (isset($request->ly_internet)) {
+                DB::table('trx_order_detail')->insert([
+                    [
+                        'trx_order_id' => $idOrder,
+                        'no_order' =>  $no_order,
+                        'line_no' => $request->line_no_1,
+                        'layanan_id' => $request->ly_internet,
+                        'amount' => $request->hrg_int,
+                        'qty' => $request->qty_int,
+                        'diskon' => $request->promo_int,
+                        'tax_amount' => (($request->hrg_int * $request->qty_int) - $request->promo_int) * 0.11,
+                        'sub_amount' => $request->subt_int + ((($request->hrg_int * $request->qty_int) - $request->promo_int) * 0.11)
+                    ]
+                ]);
+            }
+            if (isset($request->ly_tv)) {
+                DB::table('trx_order_detail')->insert([
+                    [
+                        'trx_order_id' => $idOrder,
+                        'no_order' =>  $no_order,
+                        'line_no' => $request->line_no_2,
+                        'layanan_id' => $request->ly_tv,
+                        'amount' => $request->hrg_tv,
+                        'qty' => $request->qty_tv,
+                        'diskon' => $request->promo_tv,
+                        'tax_amount' => (($request->hrg_tv * $request->qty_tv) - $request->promo_tv) * 0.11,
+                        'sub_amount' => $request->subt_tv + ((($request->hrg_tv * $request->qty_tv) - $request->promo_tv) * 0.11)
+                    ]
+                ]);
+            }
 
-                $deposit = $request->hrg_int+$request->hrg_tv;
-                $tax_amount_deposit = ($request->hrg_int+$request->hrg_tv) * 0.11;
-                $sub_amount_deposit = $deposit+$tax_amount_deposit;
-                $saldo_deposit = Pelanggan::where('id',$request->pelanggan_id)->first()->nilai_deposit;
-                $kurang_deposit = $sub_amount_deposit - $saldo_deposit;
+            $deposit = $request->hrg_int + $request->hrg_tv;
+            $tax_amount_deposit = ($request->hrg_int + $request->hrg_tv) * 0.11;
+            $sub_amount_deposit = $deposit + $tax_amount_deposit;
+            $saldo_deposit = Pelanggan::where('id', $request->pelanggan_id)->first()->nilai_deposit;
+            $kurang_deposit = $sub_amount_deposit - $saldo_deposit;
 
 
             DB::table('trx_order_detail')->insert([
@@ -168,108 +170,109 @@ class AdminTrxUpLayananController extends Controller
                     'tax_amount' => '0',
                     'sub_amount' => $sub_amount_deposit,
                 ]
-                ]);
+            ]);
 
-                DB::select('call updGtotAmount('.$idOrder.')');
+            DB::select('call updGtotAmount(' . $idOrder . ')');
         }
 
 
-            $upg = TrxOrder::where('no_order',$no_order)
-                    ->where('tipe_order','2')
-                    ->where('no_formulir',$request->no_formulir)
-                    ->first();
-            $upgdtl = TrxOrderDetail::where('no_order',$upg->no_order)
-                                    ->where('trx_order_id',$upg->id)
-                                    ->where('layanan_id','11')
-                                    ->first()->sub_amount;
-            return view('administrator.order.upgrade.getTotal',[
+        $upg = TrxOrder::where('no_order', $no_order)
+            ->where('tipe_order', '2')
+            ->where('no_formulir', $request->no_formulir)
+            ->first();
+        $upgdtl = TrxOrderDetail::where('no_order', $upg->no_order)
+            ->where('trx_order_id', $upg->id)
+            ->where('layanan_id', '11')
+            ->first()->sub_amount;
+        return view('administrator.order.upgrade.getTotal', [
 
-                'level' => $role,
-                'title' => 'Upgrade Layanan Pelanggan',
-                'no_formulir' => $request->no_formulir,
-                'internet' => $internet,
-                'tv' => $tv,
-                'telepony' => $telepony,
-                'biaya_pasang' => $pasang,
-                'period' => $period,
-                'metode_bayar' => $metode_bayar,
-                'tgl_formulir' => $request->tgl_formulir,
-                'tgl_order' => $request->tgl_order,
-                'no_pelanggan' => $request->no_pelanggan,
-                'pelanggan_id' => $request->pelanggan_id,
-                'nama_pelanggan' => $request->nama_pelanggan,
-                'nomer_identitas' => $request->nomer_identitas,
-                'no_unit' => $request->no_unit,
-                'alamat' => $request->alamat,
-                'no_hp' => $request->no_hp,
-                'no_hp2' => $request->no_hp2,
-                'email' => $request->email,
-                'catatan_request_pelanggan' => $request->catatan_request_pelanggan,
-                'jenis_promo' => $request->jenis_promo,
-                'tgl_rencana_upgrade' => $request->tgl_rencana_upgrade,
-                'lama_cicilan' => $request->lama_cicilan,
-                'catatan_instalasi' => $request->catatan_instalasi,
-                'line_no_1' => $request->line_no_1,
-                'ly_internet' => $request->ly_internet,
-                'hrg_int' => $request->hrg_int,
-                'qty_int' => $request->qty_int,
-                'promo_int' => $request->promo_int,
-                'subt_int' => $request->subt_int,
-				 'line_no_2' => $request->line_no_2,
-                'ly_tv' => $request->ly_tv,
-                'hrg_tv' => $request->hrg_tv,
-                'qty_tv' => $request->qty_tv,
-                'promo_tv' => $request->promo_tv,
-                'subt_tv' => $request->subt_tv,
-                'ppn_amount' => $upg->ppn_amount,
-                'gtot_amount' => $upg->gtot_amount,
-                'deposit' => $upgdtl
-              ]);
+            'level' => $role,
+            'title' => 'Upgrade Layanan Pelanggan',
+            'no_formulir' => $request->no_formulir,
+            'internet' => $internet,
+            'tv' => $tv,
+            'telepony' => $telepony,
+            'biaya_pasang' => $pasang,
+            'period' => $period,
+            'metode_bayar' => $metode_bayar,
+            'tgl_formulir' => $request->tgl_formulir,
+            'tgl_order' => $request->tgl_order,
+            'no_pelanggan' => $request->no_pelanggan,
+            'pelanggan_id' => $request->pelanggan_id,
+            'nama_pelanggan' => $request->nama_pelanggan,
+            'nomer_identitas' => $request->nomer_identitas,
+            'no_unit' => $request->no_unit,
+            'alamat' => $request->alamat,
+            'no_hp' => $request->no_hp,
+            'no_hp2' => $request->no_hp2,
+            'email' => $request->email,
+            'catatan_request_pelanggan' => $request->catatan_request_pelanggan,
+            'jenis_promo' => $request->jenis_promo,
+            'tgl_rencana_upgrade' => $request->tgl_rencana_upgrade,
+            'lama_cicilan' => $request->lama_cicilan,
+            'catatan_instalasi' => $request->catatan_instalasi,
+            'line_no_1' => $request->line_no_1,
+            'ly_internet' => $request->ly_internet,
+            'hrg_int' => $request->hrg_int,
+            'qty_int' => $request->qty_int,
+            'promo_int' => $request->promo_int,
+            'subt_int' => $request->subt_int,
+            'line_no_2' => $request->line_no_2,
+            'ly_tv' => $request->ly_tv,
+            'hrg_tv' => $request->hrg_tv,
+            'qty_tv' => $request->qty_tv,
+            'promo_tv' => $request->promo_tv,
+            'subt_tv' => $request->subt_tv,
+            'ppn_amount' => $upg->ppn_amount,
+            'gtot_amount' => $upg->gtot_amount,
+            'deposit' => $upgdtl
+        ]);
     }
 
-    public function getSimpan(Request $request){
+    public function getSimpan(Request $request)
+    {
 
         $role = Auth::user()->role;
-        $internet = Layanan::where('jenis_layanan','Internet')->get();
-        $tv = Layanan::wherein('jenis_layanan',['tv','tv-tambahan'])->get();
-        $telepony = Layanan::where('jenis_layanan','telephony')->get();
-        $pasang = Layanan::where('id','10')->get();
+        $internet = Layanan::where('jenis_layanan', 'Internet')->get();
+        $tv = Layanan::wherein('jenis_layanan', ['tv', 'tv-tambahan'])->get();
+        $telepony = Layanan::where('jenis_layanan', 'telephony')->get();
+        $pasang = Layanan::where('id', '10')->get();
         $period = [
-			 ['id' =>'0','name' =>'Non Promo'],
-            ['id' =>'1','name' =>'Promo 6+2'],
-            ['id' =>'2','name' =>'Promo 9+3'],
-			 ['id' =>'3','name' =>'Promo 5+1'],
-            ];
+            ['id' => '0', 'name' => 'Non Promo'],
+            ['id' => '1', 'name' => 'Promo 6+2'],
+            ['id' => '2', 'name' => 'Promo 9+3'],
+            ['id' => '3', 'name' => 'Promo 5+1'],
+        ];
         $metode_bayar = [
-            ['id' =>'1','name' =>'Lunas'],
-            ['id' =>'2','name' =>'Bertahap (Cicilan)'],
-            ];
+            ['id' => '1', 'name' => 'Lunas'],
+            ['id' => '2', 'name' => 'Bertahap (Cicilan)'],
+        ];
 
-        $no_order = substr($request->no_formulir,0,4);
+        $no_order = substr($request->no_formulir, 0, 4);
         $tipe_order = '2';
 
-        DB::select('call UpdPeriodeLayanan('.$no_order.','.$tipe_order.')');
+        DB::select('call UpdPeriodeLayanan(' . $no_order . ',' . $tipe_order . ')');
 
-		$up = TrxOrder::where('no_order',$no_order)
-                    ->where('tipe_order','2')
-                    ->where('no_formulir',$request->no_formulir)
-                    ->first();
-        if($request->deposit==0){
+        $up = TrxOrder::where('no_order', $no_order)
+            ->where('tipe_order', '2')
+            ->where('no_formulir', $request->no_formulir)
+            ->first();
+        if ($request->deposit == 0) {
 
-            DB::select('call UpdDepositNolTrxOrderDtl('.$up->id.')');
-            DB::select('call updGtotAmount('.$up->id.')');
+            DB::select('call UpdDepositNolTrxOrderDtl(' . $up->id . ')');
+            DB::select('call updGtotAmount(' . $up->id . ')');
         }
-		
-        $upg = TrxOrder::where('no_order',$no_order)
-                    ->where('tipe_order','2')
-                    ->where('no_formulir',$request->no_formulir)
-                    ->first();
-        $upgdtl = TrxOrderDetail::where('no_order',$upg->no_order)
-                    ->where('trx_order_id',$upg->id)
-                    ->where('layanan_id','11')
-                    ->first()->sub_amount;
 
-        return view('administrator.order.upgrade.getSimpan',[
+        $upg = TrxOrder::where('no_order', $no_order)
+            ->where('tipe_order', '2')
+            ->where('no_formulir', $request->no_formulir)
+            ->first();
+        $upgdtl = TrxOrderDetail::where('no_order', $upg->no_order)
+            ->where('trx_order_id', $upg->id)
+            ->where('layanan_id', '11')
+            ->first()->sub_amount;
+
+        return view('administrator.order.upgrade.getSimpan', [
 
             'level' => $role,
             'title' => 'Berhasil Simpan Upgrade Layanan Pelanggan',
@@ -302,7 +305,7 @@ class AdminTrxUpLayananController extends Controller
             'qty_int' => $request->qty_int,
             'promo_int' => $request->promo_int,
             'subt_int' => $request->subt_int,
-			'line_no_2' => $request->line_no_2,
+            'line_no_2' => $request->line_no_2,
             'ly_tv' => $request->ly_tv,
             'hrg_tv' => $request->hrg_tv,
             'qty_tv' => $request->qty_tv,
@@ -312,77 +315,74 @@ class AdminTrxUpLayananController extends Controller
             'gtot_amount' => $upg->gtot_amount,
             'deposit' => $upgdtl,
             'trx_order_id' => $upg->id,
-          ]);
+        ]);
     }
 
     public function getAksi(Request $request)
     {
 
         $role = Auth::user()->role;
-		
-		$path = base_path().'/../httpdocs/'.env('FOLDER_IN_PUBLIC_HTML').'/storage/LOGO1.png';
-		$type = pathinfo($path,PATHINFO_EXTENSION);
-		$dataimg = file_get_contents($path);
-		$pic1 = 'data:image/'.$type.';base64,'.base64_encode($dataimg);
-		$data["baseurl"] = $pic1;
-		$path2 = base_path().'/../httpdocs/'.env('FOLDER_IN_PUBLIC_HTML').'/storage/LOGO2.png';
-		$type2 = pathinfo($path2,PATHINFO_EXTENSION);
-		$dataimg2 = file_get_contents($path2);
-		$pic2 = 'data:image/'.$type2.';base64,'.base64_encode($dataimg2);
-		$data["baseurl2"] = $pic2;
-		
 
-        if($request->aksi=="show"){
+        $path = base_path() . '/../httpdocs/' . env('FOLDER_IN_PUBLIC_HTML') . '/storage/LOGO1.png';
+        $type = pathinfo($path, PATHINFO_EXTENSION);
+        $dataimg = file_get_contents($path);
+        $pic1 = 'data:image/' . $type . ';base64,' . base64_encode($dataimg);
+        $data["baseurl"] = $pic1;
+        $path2 = base_path() . '/../httpdocs/' . env('FOLDER_IN_PUBLIC_HTML') . '/storage/LOGO2.png';
+        $type2 = pathinfo($path2, PATHINFO_EXTENSION);
+        $dataimg2 = file_get_contents($path2);
+        $pic2 = 'data:image/' . $type2 . ';base64,' . base64_encode($dataimg2);
+        $data["baseurl2"] = $pic2;
+
+
+        if ($request->aksi == "show") {
             $tagdtl = DB::table('vGetInvPendaftaran')
-                ->where('id',$request->id)
+                ->where('id', $request->id)
                 ->wherenull('kwitansi')->count();
             // dd($trxOrder,$trxOrder->id,ViewTrxOrderDetail::where('no_order',$trxOrder->id)->get());
 
 
-            $pp = DB::table('vtrx_order_hdr_ppn')->where('id',$request->id)->first();
+            $pp = DB::table('vtrx_order_hdr_ppn')->where('id', $request->id)->first();
 
-            return view('administrator.order.upgrade.showupgrade',[
-                'order' => TrxOrder::where('id',$request->id)->first(),
-                'order_dtl' => ViewTrxOrderDetail::where('trx_order_id',$request->id)->get(),
+            return view('administrator.order.upgrade.showupgrade', [
+                'order' => TrxOrder::where('id', $request->id)->first(),
+                'order_dtl' => ViewTrxOrderDetail::where('trx_order_id', $request->id)->get(),
                 'order_ppn' => $pp,
                 'level' => $role,
                 'tunggakan' => $tagdtl,
                 'title' => 'Upgrade Layanan Pelanggan',
             ]);
-
         }
-        if($request->aksi=="print"){
+        if ($request->aksi == "print") {
 
             $price = DB::table('vtrxorderdetail_new')
-                        ->where('trx_order_id',$request->id)
-                        ->whereNotIn('jenis_layanan',['deposit','telephony'])
-                        ->sum('tax_amount');
+                ->where('trx_order_id', $request->id)
+                ->whereNotIn('jenis_layanan', ['deposit', 'telephony'])
+                ->sum('tax_amount');
             //dd($price);
 
-            $data["order"] = TrxOrder::where('id',$request->id)->first();
-            $data["order_dtl"] = ViewTrxOrderDetail::where('trx_order_id',$request->id)
-                                                    ->whereNotIn('jenis_layanan',['deposit','telephony'])->get();
+            $data["order"] = TrxOrder::where('id', $request->id)->first();
+            $data["order_dtl"] = ViewTrxOrderDetail::where('trx_order_id', $request->id)
+                ->whereNotIn('jenis_layanan', ['deposit', 'telephony'])->get();
             $data["title"] = "Formulir Upgrade Layanan Pelanggan";
 
             //return view('administrator.order.upgrade.invUpgrade1', $data);
 
-             $pdf = PDF::loadView('administrator.order.upgrade.invUpgrade1', $data);
-             return $pdf->setPaper('A4','portrait')->stream();
-
+            $pdf = PDF::loadView('administrator.order.upgrade.invUpgrade1', $data);
+            return $pdf->setPaper('A4', 'portrait')->stream();
         }
-        if($request->akse="print-non-ppn"){
+        if ($request->akse = "print-non-ppn") {
 
-            $data["order"] = TrxOrder::where('id',$request->id)->first();
-            $data["order_dtl"] = ViewTrxOrderDetail::where('trx_order_id',$request->id)
-                                                    ->whereIn('jenis_layanan',['deposit','telephony'])->get();
+            $data["order"] = TrxOrder::where('id', $request->id)->first();
+            $data["order_dtl"] = ViewTrxOrderDetail::where('trx_order_id', $request->id)
+                ->whereIn('jenis_layanan', ['deposit', 'telephony'])->get();
             $data["title"] = "Formulir Upgrade Layanan Pelanggan";
 
-        //    / return view('administrator.order.upgrade.invUpgrade2', $data);
+            //    / return view('administrator.order.upgrade.invUpgrade2', $data);
 
             $pdf = PDF::loadView('administrator.order.upgrade.invUpgrade2', $data);
 
-            return $pdf->setPaper('A4','portrait')->stream();
+            return $pdf->setPaper('A4', 'portrait')->stream();
         }
-
     }
 }
