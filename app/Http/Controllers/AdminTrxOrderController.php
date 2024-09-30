@@ -69,7 +69,8 @@ class AdminTrxOrderController extends Controller
         $role = Auth::user()->role;
 
         $internet = Layanan::where('jenis_layanan', 'Internet')
-            ->where('aktif', '1')->get();
+            ->where('aktif', '1')
+            ->get();
         $tv = Layanan::where('jenis_layanan', 'tv')->get();
         $telepony = Layanan::where('jenis_layanan', 'telephony')->get();
         $pasang = Layanan::wherein('id', ['10', '18', '19', '20'])->get();
