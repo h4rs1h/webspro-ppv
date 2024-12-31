@@ -2,21 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use PDF;
 use App\Models\Layanan;
-use App\Models\TrxOrder;
 use App\Models\TrxBayar;
+use App\Models\TrxOrder;
 use App\Models\Pelanggan;
 use App\Models\TrxOutbox;
 use Illuminate\Http\Request;
+use App\Models\ViewPelanggan;
+use App\Helpers\SettingHelper;
 use App\Models\TrxOrderDetail;
 use App\Models\ViewCekTrxOrderDtl;
 use App\Models\ViewTrxOrderDetail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use App\Models\ViewPelanggan;
 use App\Models\ViewTrxOrderPelanggan;
 use Illuminate\Support\Facades\Crypt;
-use PDF;
 
 class AdminTrxOrderController extends Controller
 {
@@ -75,6 +76,8 @@ class AdminTrxOrderController extends Controller
         $telepony = Layanan::where('jenis_layanan', 'telephony')->get();
         $pasang = Layanan::wherein('id', ['10', '18', '19', '20'])->get();
         $jenis_promo = DB::table('set_promo')->get(['id', 'name']);
+        $ppnRate = SettingHelper::getPpn();
+
         $period = [
             ['id' => '1', 'name' => 'Bulanan'],
             ['id' => '2', 'name' => 'Tahunan'],
@@ -96,6 +99,7 @@ class AdminTrxOrderController extends Controller
             'period' => $period,
             'promo' => $jenis_promo,
             'metode_bayar' => $metode_bayar,
+            'ppn_rate' => $ppnRate, // Kirim nilai PPN ke view
         ]);
     }
 
@@ -163,6 +167,11 @@ class AdminTrxOrderController extends Controller
             'lama_cicilan' => 'required|numeric',
         ]);
 
+        // Hitung PPN berdasarkan tanggal transaksi
+        $tglTransaksi = $request->tgl_formulir;
+        $ppnRate = SettingHelper::getPpn($tglTransaksi);
+        $ppnAmount = $request->amount * ($ppnRate / 100);
+
         $hdrTrxOrder = ([
             'no_order' => substr($request->no_formulir, 0, 4),
             'tipe_order' => '1',
@@ -173,14 +182,16 @@ class AdminTrxOrderController extends Controller
             'langganan_status' => $request->langganan_status,
             'gtot_amount' => $request->gt_amount,
             'amount' => $request->amount,
-            'ppn_amount' => $request->ppn_amount,
+            'ppn_amount' =>  $ppnAmount,
+            'ppn_rate' => $ppnRate,
             'tgl_target_instalasi' => $request->tgl_target_instalasi,
             'catatan_instalasi' => $request->catatan_instalasi,
             'metode_bayar' => $request->metode_bayar,
             'termin_bayar' => $request->lama_cicilan,
             'jenis_promo' => $request->jenis_promo,
+            'user_id' => auth()->user()->id,
         ]);
-        $hdrTrxOrder['user_id'] = auth()->user()->id;
+        // $hdrTrxOrder['user_id'] = auth()->user()->id;
         //Insert Header
         $idOrder = TrxOrder::create($hdrTrxOrder)->id;
         //   dd($idOrder);
@@ -643,6 +654,7 @@ class AdminTrxOrderController extends Controller
         $tv = Layanan::where('jenis_layanan', 'tv')->get();
         $telepony = Layanan::where('jenis_layanan', 'telephony')->get();
         $pasang = Layanan::wherein('id', ['10', '18', '19'])->get();
+        $ppnRate = SettingHelper::getPpn();
 
         $dtl_order1 = ViewTrxOrderDetail::where('trx_order_id', $trxOrder->id)
             ->get();
@@ -685,7 +697,8 @@ class AdminTrxOrderController extends Controller
             'telepony' => $telepony,
             'biaya_pasang' => $pasang,
             'period' => $period,
-            'status_bayar' => $stsbyr
+            'status_bayar' => $stsbyr,
+            'ppn_rate' => $ppnRate,
         ]);
     }
 
@@ -711,6 +724,11 @@ class AdminTrxOrderController extends Controller
 
         $validateData = $request->validate($rules);
         // dd($rules);
+        // Hitung PPN berdasarkan tanggal transaksi
+        $tglTransaksi = $request->tgl_formulir;
+        $ppnRate = SettingHelper::getPpn($tglTransaksi);
+        $ppnAmount = $request->amount * ($ppnRate / 100);
+
         $hdrTrxOrder = ([
             'no_order' => substr($request->no_formulir, 0, 4),
             'no_formulir' => $request->no_formulir,
@@ -720,7 +738,8 @@ class AdminTrxOrderController extends Controller
             'langganan_status' => $request->langganan_status,
             'gtot_amount' => $request->gt_amount,
             'amount' => $request->amount,
-            'ppn_amount' => $request->ppn_amount,
+            'ppn_amount' => $ppnAmount,
+            'ppn_rate' => $ppnRate,
             'langganan_status' => $request->langganan_status,
             'tgl_target_instalasi' => $request->tgl_target_instalasi,
             'catatan_instalasi' => $request->catatan_instalasi

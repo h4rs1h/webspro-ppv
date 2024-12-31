@@ -565,7 +565,8 @@
                                                                 </tr>
 
                                                                 <tr>
-                                                                    <td colspan="5" class="text-right">PPN 11%
+                                                                    <td colspan="5" class="text-right">PPN
+                                                                        {{ $ppn_rate }}%
                                                                         <input type="hidden" name="line_no_5"
                                                                             value="5">
                                                                     </td>
@@ -638,5 +639,9 @@
             </div>
         </div>
     </div>
-    <script src="{{ asset('js/trxorder.js') }}"></script>
+    <!-- Kirim nilai PPN ke JavaScript -->
+    <script>
+        window.PPN = {{ $ppn_rate }};
+    </script>
+    <script src="{{ asset('js/trxorder2.js') }}"></script>
 @endsection
