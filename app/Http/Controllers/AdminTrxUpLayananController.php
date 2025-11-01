@@ -45,6 +45,7 @@ class AdminTrxUpLayananController extends Controller
             ['id' => '1', 'name' => 'Promo 6+2'],
             ['id' => '2', 'name' => 'Promo 9+3'],
             ['id' => '3', 'name' => 'Promo 5+1'],
+            ['id' => '4', 'name' => 'Promo 6+1'],
         ];
         $metode_bayar = [
             ['id' => '1', 'name' => 'Lunas'],
@@ -77,6 +78,7 @@ class AdminTrxUpLayananController extends Controller
             ['id' => '1', 'name' => 'Promo 6+2'],
             ['id' => '2', 'name' => 'Promo 9+3'],
             ['id' => '3', 'name' => 'Promo 5+1'],
+            ['id' => '4', 'name' => 'Promo 6+1'],
         ];
         $metode_bayar = [
             ['id' => '1', 'name' => 'Lunas'],
@@ -242,6 +244,7 @@ class AdminTrxUpLayananController extends Controller
             ['id' => '1', 'name' => 'Promo 6+2'],
             ['id' => '2', 'name' => 'Promo 9+3'],
             ['id' => '3', 'name' => 'Promo 5+1'],
+            ['id' => '4', 'name' => 'Promo 6+1'],
         ];
         $metode_bayar = [
             ['id' => '1', 'name' => 'Lunas'],
