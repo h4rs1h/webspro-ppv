@@ -366,14 +366,15 @@ class MessageController extends Controller
 
         $data = TrxOutbox::where('tgl_terkirim',null)->whereIn('no_wa',['PROBLEM HANDLING'])->get();
 
-     //   $url = env('WOOWA_URL_SEND').'send_message_group_id'; //sync
+        $url = env('WOOWA_URL_SEND').'send_message_group_id'; //sync
 		//$url = env('WOOWA_URL_SEND').'async_send_message_group_id';  //async_send_message_group_id
-		$url = env('WOOWA_URL_SEND').'send_group'; //sync
+	//	$url = env('WOOWA_URL_SEND').'send_group'; //sync
         $license = env('WOOWA_LICENSE');
         $keys = env('WOOWA_KEY');
-		
+		//	dd($url);
        // $group_id =  'EeQPNBrxxFWCck7nPGxmkU'; //Group PROBLEM HANDLING MORA-PPV
-		$group_id =  'BytwcwUWGjfBdXdypAKa0f'; //Group PROBLEM HANDLING MORA-PPV
+	//	$group_id =  'BytwcwUWGjfBdXdypAKa0f'; //Group PROBLEM HANDLING MORA-PPV-exp
+		$group_id =  'JIydIiRTpSM2IrPC2uPpq6'; //Group PROBLEM HANDLING MORA-PPV 
        // $group_id =  'CL3wO83g9ZXKEhNp45V41a'; //Group Dummy
 
         $cek = $this->getStatusQr();
@@ -383,48 +384,52 @@ class MessageController extends Controller
             foreach($data as $dt){
 
                 $data = array(
-                    "group_name" =>'PROBLEM HANDLING MORA-PPV',
-                 //   "group_id"  => $group_id,
+                //    "group_name" =>'PROBLEM HANDLING MORA-PPV',
+                    "group_id"  => $group_id,
                     "key"         => $keys,
                     "message"     => $dt->isi_pesan
                 );
-				
-				$response = Http::withHeaders([
-					'Content-Type' => 'application/json',
+				// dd($data);
+			//	$response = Http::withHeaders([
+			//		'Content-Type' => 'application/json',
 				//	'Content-Length' => strlen($data)
-				])->withOptions([
-					'debug' => false,
-					'connect_timeout' =>false,
-					'timeout' => false,
-					'verify' => false,
-				])->post($url,[
+			//	])->withOptions([
+			//		'debug' => false,
+			//		'connect_timeout' =>false,
+			//		'timeout' => false,
+			//		'verify' => false,
+			//	])->post($url,[
 					//"group_id"  => $group_id,
-					"group_name" =>'PROBLEM HANDLING MORA-PPV',
-                    "key"         => $keys,
-                    "message"     => $dt->isi_pesan
-				]);
+			//		"group_name" =>'PROBLEM HANDLING MORA-PPV',
+              //      "key"         => $keys,
+              //      "message"     => $dt->isi_pesan
+		//		]);
 				
                
-		//		$data_string = json_encode($data);
+				$data_string = json_encode($data);
 
-			//	$ch = curl_init($url);
-			//	curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
-			//	curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
-			//	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-			//	curl_setopt($ch, CURLOPT_VERBOSE, 0);
-			//	curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
-			//	curl_setopt($ch, CURLOPT_TIMEOUT, 360);
-			//	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-			//	curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-			//	curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-			//	  'Content-Type: application/json',
-			//	  'Content-Length: ' . strlen($data_string))
-			//	);
+				$ch = curl_init($url);
+				curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+				curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
+				curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+				curl_setopt($ch, CURLOPT_VERBOSE, 0);
+				curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
+				curl_setopt($ch, CURLOPT_TIMEOUT, 360);
+				curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+				curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+				curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+				  'Content-Type: application/json',
+				  'Content-Length: ' . strlen($data_string))
+				);
 				//echo $res=curl_exec($ch);
 				//curl_close($ch);
 			//	 $this->getNotifSoftBandFile($dt->file);
               //   dd($response->body(),$response->successful(),curl_exec($ch));
-                if($response->body()=='success'){
+				$res=curl_exec($ch);
+				curl_close($ch);
+				 $this->getNotifSoftBandFile($dt->file);
+				
+                if($res=='success'){
                     $tkirim = now();
                     $upd = ([
                         'tgl_terkirim' => $tkirim,
@@ -484,8 +489,8 @@ class MessageController extends Controller
         $url = env('WOOWA_URL_SEND').'send_file_url_group_id';
         $license = env('WOOWA_LICENSE');
         $keys = env('WOOWA_KEY');
-       // $group_id =  'BytwcwUWGjfBdXdypAKa0f'; //Group PROBLEM HANDLING MORA-PPV
-        $group_id =  'CL3wO83g9ZXKEhNp45V41a'; //Group Dummy
+        $group_id =  'JIydIiRTpSM2IrPC2uPpq6'; //Group PROBLEM HANDLING MORA-PPV
+       // $group_id =  'CL3wO83g9ZXKEhNp45V41a'; //Group Dummy
         $img_url = $file;
 
         $cek = $this->getStatusQr();

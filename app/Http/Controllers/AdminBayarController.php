@@ -671,12 +671,12 @@ if($request->no_order)
 		$periode = DB::select("call GetPeriodePemakaianFromOrder('".$trxBayar->id."')");
 		
          // dd($trxOrder->id,$trxOrder->no_order);
-		$path = base_path().'/../httpdocs/'.env('FOLDER_IN_PUBLIC_HTML').'/storage/LOGO1.png';
+		$path = base_path().'/../'.env('FOLDER_IN_PUBLIC_HTML_2').'/storage/LOGO1.png';
 		$type = pathinfo($path,PATHINFO_EXTENSION);
 		$dataimg = file_get_contents($path);
 		$pic1 = 'data:image/'.$type.';base64,'.base64_encode($dataimg);
 		$data["baseurl"] = $pic1;
-		$path2 = base_path().'/../httpdocs/'.env('FOLDER_IN_PUBLIC_HTML').'/storage/LOGO2.png';
+		$path2 = base_path().'/../'.env('FOLDER_IN_PUBLIC_HTML_2').'/storage/LOGO2.png';
 		$type2 = pathinfo($path2,PATHINFO_EXTENSION);
 		$dataimg2 = file_get_contents($path2);
 		$pic2 = 'data:image/'.$type2.';base64,'.base64_encode($dataimg2);
@@ -704,12 +704,12 @@ if($request->no_order)
 		$tagihan = ViewTrxTagihan::where('id',$hdr->id_order_or_tagihan)->first();
 		$periode = DB::select("call GetPeriodePemakaianFromOrder('".$trxBayar->id."')");
         //  dd($hdr);
-		$path = base_path().'/../httpdocs/'.env('FOLDER_IN_PUBLIC_HTML').'/storage/LOGO1.png';
+		$path = base_path().'/../'.env('FOLDER_IN_PUBLIC_HTML_2').'/storage/LOGO1.png';
 		$type = pathinfo($path,PATHINFO_EXTENSION);
 		$dataimg = file_get_contents($path);
 		$pic1 = 'data:image/'.$type.';base64,'.base64_encode($dataimg);
 		$data["baseurl"] = $pic1;
-		$path2 = base_path().'/../httpdocs/'.env('FOLDER_IN_PUBLIC_HTML').'/storage/LOGO2.png';
+		$path2 = base_path().'/../'.env('FOLDER_IN_PUBLIC_HTML_2').'/storage/LOGO2.png';
 		$type2 = pathinfo($path2,PATHINFO_EXTENSION);
 		$dataimg2 = file_get_contents($path2);
 		$pic2 = 'data:image/'.$type2.';base64,'.base64_encode($dataimg2);

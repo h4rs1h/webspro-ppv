@@ -37,7 +37,7 @@ return [
 		
 		'hosting' => [
             'driver' => 'local',
-			'root' => public_path().'/../../httpdocs/'.env('FOLDER_IN_PUBLIC_HTML').'/storage',
+			'root' => public_path().'/../../'.env('FOLDER_IN_PUBLIC_HTML_2').'/storage',
           //  'root' => public_path().'/httpdocs/storage',
             'url' => env('APP_URL').'/'.env('FOLDER_IN_PUBLIC_HTML').'/storage',
             'visibility' => 'public',

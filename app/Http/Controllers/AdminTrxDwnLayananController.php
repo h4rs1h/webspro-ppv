@@ -302,12 +302,12 @@ class AdminTrxDwnLayananController extends Controller
     {
 
         $role = Auth::user()->role;
-        $path = base_path() . '/../httpdocs/' . env('FOLDER_IN_PUBLIC_HTML') . '/storage/LOGO1.png';
+        $path = base_path() . '/../' . env('FOLDER_IN_PUBLIC_HTML_2') . '/storage/LOGO1.png';
         $type = pathinfo($path, PATHINFO_EXTENSION);
         $dataimg = file_get_contents($path);
         $pic1 = 'data:image/' . $type . ';base64,' . base64_encode($dataimg);
         $data["baseurl"] = $pic1;
-        $path2 = base_path() . '/../httpdocs/' . env('FOLDER_IN_PUBLIC_HTML') . '/storage/LOGO2.png';
+        $path2 = base_path() . '/../' . env('FOLDER_IN_PUBLIC_HTML_2') . '/storage/LOGO2.png';
         $type2 = pathinfo($path2, PATHINFO_EXTENSION);
         $dataimg2 = file_get_contents($path2);
         $pic2 = 'data:image/' . $type2 . ';base64,' . base64_encode($dataimg2);

@@ -119,8 +119,12 @@ class AdminProsesOnSistemController extends Controller
 			 'data3' => $data3,
         ];
 		//dd($details);
-        \Mail::to('hrsanto@gmail.com')->send(new \App\Mail\MyTestMail($details));
-
+       // \Mail::to('hrsanto@gmail.com')->send(new \App\Mail\MyTestMail($details));
+		 DB::table('Trx_logProses')->insert([
+                'tgl_proses' => now(),
+                'proses' => 'Proses Generate Proforma Inv'.Carbon::today()->format('d-m-Y'),
+                'keterangan' => 'Proses Berhasil  ',
+            ]);
         return "berhasil";
     }
 	public function getKirimNotifTerminWa(){

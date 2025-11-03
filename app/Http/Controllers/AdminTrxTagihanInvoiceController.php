@@ -58,22 +58,22 @@ class AdminTrxTagihanInvoiceController extends Controller
         $data['tagihandtl'] = ViewTrxTagihanDtl::where('no_tagihan',$request->no_tagihan)->get();
         $data["title"] = "Invoice Tagihan ".$request->no_tagihan;
 		
-		$path = base_path().'/../httpdocs/'.env('FOLDER_IN_PUBLIC_HTML').'/storage/LOGO1.png';
+		$path = base_path().'/../'.env('FOLDER_IN_PUBLIC_HTML_2').'/storage/LOGO1.png';
 		$type = pathinfo($path,PATHINFO_EXTENSION);
 		$dataimg = file_get_contents($path);
 		$pic1 = 'data:image/'.$type.';base64,'.base64_encode($dataimg);
 		$data["baseurl"] = $pic1;
-		$path2 = base_path().'/../httpdocs/'.env('FOLDER_IN_PUBLIC_HTML').'/storage/LOGO2.png';
+		$path2 = base_path().'/../'.env('FOLDER_IN_PUBLIC_HTML_2').'/storage/LOGO2.png';
 		$type2 = pathinfo($path2,PATHINFO_EXTENSION);
 		$dataimg2 = file_get_contents($path2);
 		$pic2 = 'data:image/'.$type2.';base64,'.base64_encode($dataimg2);
 		$data["baseurl2"] = $pic2;
-		$path3 = base_path().'/../httpdocs/'.env('FOLDER_IN_PUBLIC_HTML').'/storage/unpaid.png';
+		$path3 = base_path().'/../'.env('FOLDER_IN_PUBLIC_HTML_2').'/storage/unpaid.png';
 		$type3 = pathinfo($path3,PATHINFO_EXTENSION);
 		$dataimg3 = file_get_contents($path3);
 		$pic3 = 'data:image/'.$type3.';base64,'.base64_encode($dataimg3);
 		$data["baseurl3"] = $pic3;
-		$path4 = base_path().'/../httpdocs/'.env('FOLDER_IN_PUBLIC_HTML').'/storage/paid.png';
+		$path4 = base_path().'/../'.env('FOLDER_IN_PUBLIC_HTML_2').'/storage/paid.png';
 		$type4 = pathinfo($path4,PATHINFO_EXTENSION);
 		$dataimg4 = file_get_contents($path4);
 		$pic4 = 'data:image/'.$type4.';base64,'.base64_encode($dataimg4);
