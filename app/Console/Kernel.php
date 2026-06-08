@@ -4,6 +4,7 @@ namespace App\Console;
 
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+use App\Console\Commands\GenerateDailyInvoiceV2;
 
 class Kernel extends ConsoleKernel
 {
@@ -16,6 +17,10 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         // $schedule->command('inspire')->hourly();
+         $schedule->command('invoice:generate-daily-v2')
+            ->dailyAt('05:45')
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/invoice-generate-daily-v2.log'));
     }
 
     /**
