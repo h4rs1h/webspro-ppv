@@ -129,6 +129,8 @@ class GenerateDailyInvoiceV2 extends Command
         $hasInvoice = $verify->already_has_invoice ?? 0;
         $missing = $verify->still_missing_invoice ?? 0;
 
+        $missingColor = ($missing > 0) ? "#dc2626" : "#16a34a";
+
         return <<<HTML
 <!DOCTYPE html>
 <html lang="id">
@@ -163,7 +165,7 @@ class GenerateDailyInvoiceV2 extends Command
 <table>
   <tr><td>Total Kandidat</td><td><strong>{$verifyTotal}</strong></td></tr>
   <tr><td>Sudah Punya Invoice</td><td>{$hasInvoice}</td></tr>
-  <tr><td>Still Missing</td><td style="color: " . ({$missing} > 0 ? '#dc2626' : '#16a34a') . ";">{$missing}</td></tr>
+  <tr><td>Still Missing</td><td style="color: {$missingColor};">{$missing}</td></tr>
 </table>
 
 <div class="footer">
