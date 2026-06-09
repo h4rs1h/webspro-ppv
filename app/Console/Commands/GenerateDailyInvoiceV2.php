@@ -5,41 +5,13 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\InvoiceDailyReportV2;
 use Throwable;
 
 class GenerateDailyInvoiceV2 extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'invoice:generate-daily-v2 {--date=} {--dry-run}';
-
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
     protected $description = 'Generate invoice harian v2 berbasis exp_date v11';
 
-    /**
-     * Create a new command instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        parent::__construct();
-    }
-
-    /**
-     * Execute the console command.
-     *
-     * @return int
-     */
     public function handle()
     {
         $date = $this->option('date') ?: now()->toDateString();
@@ -48,26 +20,17 @@ class GenerateDailyInvoiceV2 extends Command
         $this->info("Mulai invoice:generate-daily-v2 | date={$date} | dry_run={$dryRun}");
 
         try {
-            // 1) Sync exp_date dulu (dry-run aman)
             DB::statement("CALL hr_v2_sync_expdate_sp(" . ($dryRun ? "TRUE" : "FALSE") . ")");
             $this->info("Sync exp_date selesai");
 
-            // 2) Generate invoice v2
-            $generate = DB::select("CALL hr_v2_generate_invoice_daily_sp(?, ?)", [
-                $date,
-                $dryRun
-            ]);
+            $generate = DB::select("CALL hr_v2_generate_invoice_daily_sp(?, ?)", [$date, $dryRun]);
             $this->info("Generate invoice v2 selesai");
             $this->line(json_encode($generate, JSON_PRETTY_PRINT));
 
-            // 3) Verify hasil berdasarkan target date
-            $verify = DB::select("CALL hr_v2_verify_invoice_daily_target_sp(?)", [
-                $date
-            ]);
+            $verify = DB::select("CALL hr_v2_verify_invoice_daily_target_sp(?)", [$date]);
             $this->info("Verify selesai");
             $this->line(json_encode($verify, JSON_PRETTY_PRINT));
 
-            // 4) Susun ringkasan untuk log dan email
             $summary = $generate[0] ?? (object) [
                 'total_candidate' => 0,
                 'created_count' => 0,
@@ -87,11 +50,10 @@ class GenerateDailyInvoiceV2 extends Command
                 'verify' => $verify,
             ]);
 
-            // 5) Kirim email notifikasi (hanya saat execute, bukan dry-run)
             if (! $dryRun) {
-                $this->sendReportEmail($date, $summary, $verifyFirst);
+                $this->sendReportToHosting($date, $summary, $verifyFirst);
             } else {
-                $this->info("Mode dry-run: email tidak dikirim");
+                $this->info("Mode dry-run: laporan tidak dikirim");
             }
 
             return self::SUCCESS;
@@ -108,55 +70,71 @@ class GenerateDailyInvoiceV2 extends Command
         }
     }
 
-    /**
-     * Kirim laporan via email ke satu atau banyak penerima.
-     *
-     * @param string $date
-     * @param object $summary
-     * @param object $verify
-     * @return void
-     */
-    protected function sendReportEmail($date, $summary, $verify)
+    protected function sendReportToHosting($date, $summary, $verify)
     {
-        $recipients = env('INVOICE_REPORT_EMAIL', 'hrsanto@gmail.com');
-        $emails = array_map('trim', explode(',', $recipients));
-        $appEnv = env('APP_ENV', 'production');
+        $url = env('INVOICE_REPORT_PROD_URL', 'https://mediaprimajaringan.com/api/bos/send-invoice-report-v2');
+        $secret = env('INVOICE_REPORT_API_SECRET', '');
+        $recipients = env('INVOICE_REPORT_EMAIL', 'hrsanto@gmail.com,harsih.hhr@gmail.com');
+        $appEnv = env('APP_ENV', 'development');
 
         $report = [
             'subject' => "Laporan Generate Invoice Harian V2 - {$date} [{$appEnv}]",
-            'date'    => $date,
-            'env'     => $appEnv,
+            'date' => $date,
+            'env' => $appEnv,
             'dry_run' => false,
             'summary' => [
-                'total_candidate'  => $summary->total_candidate ?? 0,
-                'created_count'    => $summary->created_count ?? 0,
+                'total_candidate' => $summary->total_candidate ?? 0,
+                'created_count' => $summary->created_count ?? 0,
                 'skipped_existing' => $summary->skipped_existing ?? 0,
-                'failed_count'     => $summary->failed_count ?? 0,
+                'failed_count' => $summary->failed_count ?? 0,
             ],
             'verify' => [
-                'total_candidates'    => $verify->total_candidates ?? 0,
-                'already_has_invoice'  => $verify->already_has_invoice ?? 0,
+                'total_candidates' => $verify->total_candidates ?? 0,
+                'already_has_invoice' => $verify->already_has_invoice ?? 0,
                 'still_missing_invoice' => $verify->still_missing_invoice ?? 0,
             ],
         ];
 
-        foreach ($emails as $email) {
-            if (empty($email)) continue;
-            try {
-                Mail::to($email)->send(new InvoiceDailyReportV2($report));
-                $this->info("Email terkirim ke {$email}");
-                Log::info('invoice:generate-daily-v2 email sent', [
-                    'to' => $email,
+        try {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => json_encode(['report' => $report, 'to' => $recipients]),
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'X-Invoice-Report-Secret: ' . $secret,
+                ],
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_CONNECTTIMEOUT => 10,
+            ]);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($error) {
+                $this->warn("Gagal POST ke hosting: {$error}");
+                Log::warning('invoice:generate-daily-v2 post failed', [
+                    'url' => $url,
+                    'error' => $error,
                     'date' => $date,
                 ]);
-            } catch (Throwable $e) {
-                $this->warn("Email gagal terkirim ke {$email}: " . $e->getMessage());
-                Log::warning('invoice:generate-daily-v2 email failed', [
-                    'to' => $email,
+            } else {
+                $this->info("Laporan dikirim ke hosting [HTTP {$httpCode}]");
+                Log::info('invoice:generate-daily-v2 report sent to hosting', [
+                    'url' => $url,
+                    'http_code' => $httpCode,
+                    'response' => $response,
                     'date' => $date,
-                    'message' => $e->getMessage(),
                 ]);
             }
+        } catch (Throwable $e) {
+            $this->warn("Gagal kirim laporan: " . $e->getMessage());
+            Log::warning('invoice:generate-daily-v2 report failed', [
+                'date' => $date,
+                'message' => $e->getMessage(),
+            ]);
         }
     }
 }
