@@ -5,6 +5,8 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\InvoiceDailyReportV2;
 use Throwable;
 
 class GenerateDailyInvoiceV2 extends Command
@@ -65,12 +67,32 @@ class GenerateDailyInvoiceV2 extends Command
             $this->info("Verify selesai");
             $this->line(json_encode($verify, JSON_PRETTY_PRINT));
 
+            // 4) Susun ringkasan untuk log dan email
+            $summary = $generate[0] ?? (object) [
+                'total_candidate' => 0,
+                'created_count' => 0,
+                'skipped_existing' => 0,
+                'failed_count' => 0,
+            ];
+            $verifyFirst = $verify[0] ?? (object) [
+                'total_candidates' => 0,
+                'already_has_invoice' => 0,
+                'still_missing_invoice' => 0,
+            ];
+
             Log::info('invoice:generate-daily-v2 success', [
                 'date' => $date,
                 'dry_run' => $dryRun,
                 'generate' => $generate,
                 'verify' => $verify,
             ]);
+
+            // 5) Kirim email notifikasi (hanya saat execute, bukan dry-run)
+            if (! $dryRun) {
+                $this->sendReportEmail($date, $summary, $verifyFirst);
+            } else {
+                $this->info("Mode dry-run: email tidak dikirim");
+            }
 
             return self::SUCCESS;
         } catch (Throwable $e) {
@@ -83,6 +105,58 @@ class GenerateDailyInvoiceV2 extends Command
 
             $this->error("Gagal: " . $e->getMessage());
             return self::FAILURE;
+        }
+    }
+
+    /**
+     * Kirim laporan via email ke satu atau banyak penerima.
+     *
+     * @param string $date
+     * @param object $summary
+     * @param object $verify
+     * @return void
+     */
+    protected function sendReportEmail($date, $summary, $verify)
+    {
+        $recipients = env('INVOICE_REPORT_EMAIL', 'hrsanto@gmail.com');
+        $emails = array_map('trim', explode(',', $recipients));
+        $appEnv = env('APP_ENV', 'production');
+
+        $report = [
+            'subject' => "Laporan Generate Invoice Harian V2 - {$date} [{$appEnv}]",
+            'date'    => $date,
+            'env'     => $appEnv,
+            'dry_run' => false,
+            'summary' => [
+                'total_candidate'  => $summary->total_candidate ?? 0,
+                'created_count'    => $summary->created_count ?? 0,
+                'skipped_existing' => $summary->skipped_existing ?? 0,
+                'failed_count'     => $summary->failed_count ?? 0,
+            ],
+            'verify' => [
+                'total_candidates'    => $verify->total_candidates ?? 0,
+                'already_has_invoice'  => $verify->already_has_invoice ?? 0,
+                'still_missing_invoice' => $verify->still_missing_invoice ?? 0,
+            ],
+        ];
+
+        foreach ($emails as $email) {
+            if (empty($email)) continue;
+            try {
+                Mail::to($email)->send(new InvoiceDailyReportV2($report));
+                $this->info("Email terkirim ke {$email}");
+                Log::info('invoice:generate-daily-v2 email sent', [
+                    'to' => $email,
+                    'date' => $date,
+                ]);
+            } catch (Throwable $e) {
+                $this->warn("Email gagal terkirim ke {$email}: " . $e->getMessage());
+                Log::warning('invoice:generate-daily-v2 email failed', [
+                    'to' => $email,
+                    'date' => $date,
+                    'message' => $e->getMessage(),
+                ]);
+            }
         }
     }
 }
