@@ -174,6 +174,58 @@ class AdminProsesOnSistemController extends Controller
         return "berhasil";
     }
 
+    public function getProcessEmailQueue(Request $request)
+    {
+        $secret = $request->header('X-Invoice-Report-Secret', $request->input('secret'));
+        $expected = env('INVOICE_REPORT_API_SECRET', '');
+
+        if (!$expected || $secret !== $expected) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $pending = DB::table('Trx_email_queue')
+            ->where('status', 'pending')
+            ->orderBy('created_at', 'asc')
+            ->limit(20)
+            ->get();
+
+        $sent = 0;
+        $failed = 0;
+
+        foreach ($pending as $row) {
+            try {
+                \Mail::html($row->body_html, function ($msg) use ($row) {
+                    $msg->to($row->recipient)->subject($row->subject);
+                });
+
+                DB::table('Trx_email_queue')
+                    ->where('id', $row->id)
+                    ->update(['status' => 'sent', 'sent_at' => now()]);
+
+                $sent++;
+            } catch (\Exception $e) {
+                DB::table('Trx_email_queue')
+                    ->where('id', $row->id)
+                    ->update(['status' => 'failed', 'error_message' => $e->getMessage()]);
+
+                $failed++;
+            }
+        }
+
+        DB::table('Trx_logProses')->insert([
+            'tgl_proses' => now(),
+            'proses' => 'Process Email Queue',
+            'keterangan' => "Sent: {$sent}, Failed: {$failed}",
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'total' => count($pending),
+            'sent' => $sent,
+            'failed' => $failed,
+        ]);
+    }
+
     public function postInvoiceReportV2(Request $request)
     {
         $secret = $request->header('X-Invoice-Report-Secret', $request->input('secret'));

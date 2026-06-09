@@ -51,7 +51,7 @@ class GenerateDailyInvoiceV2 extends Command
             ]);
 
             if (! $dryRun) {
-                $this->sendReportToHosting($date, $summary, $verifyFirst);
+                $this->queueReportEmail($date, $summary, $verifyFirst);
             } else {
                 $this->info("Mode dry-run: laporan tidak dikirim");
             }
@@ -64,77 +64,106 @@ class GenerateDailyInvoiceV2 extends Command
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-
             $this->error("Gagal: " . $e->getMessage());
             return self::FAILURE;
         }
     }
 
-    protected function sendReportToHosting($date, $summary, $verify)
+    /**
+     * Insert laporan ke Trx_email_queue di production DB.
+     * Hosting yang akan memproses queue dan mengirim email via SMTP internal.
+     */
+    protected function queueReportEmail($date, $summary, $verify)
     {
-        $url = env('INVOICE_REPORT_PROD_URL', 'https://mediaprimajaringan.com/api/bos/send-invoice-report-v2');
-        $secret = env('INVOICE_REPORT_API_SECRET', '');
         $recipients = env('INVOICE_REPORT_EMAIL', 'hrsanto@gmail.com,harsih.hhr@gmail.com');
         $appEnv = env('APP_ENV', 'development');
 
-        $report = [
-            'subject' => "Laporan Generate Invoice Harian V2 - {$date} [{$appEnv}]",
-            'date' => $date,
-            'env' => $appEnv,
-            'dry_run' => false,
-            'summary' => [
-                'total_candidate' => $summary->total_candidate ?? 0,
-                'created_count' => $summary->created_count ?? 0,
-                'skipped_existing' => $summary->skipped_existing ?? 0,
-                'failed_count' => $summary->failed_count ?? 0,
-            ],
-            'verify' => [
-                'total_candidates' => $verify->total_candidates ?? 0,
-                'already_has_invoice' => $verify->already_has_invoice ?? 0,
-                'still_missing_invoice' => $verify->still_missing_invoice ?? 0,
-            ],
-        ];
+        $subject = "Laporan Generate Invoice Harian V2 - {$date} [{$appEnv}]";
 
-        try {
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [
-                CURLOPT_POST => true,
-                CURLOPT_POSTFIELDS => json_encode(['report' => $report, 'to' => $recipients]),
-                CURLOPT_HTTPHEADER => [
-                    'Content-Type: application/json',
-                    'X-Invoice-Report-Secret: ' . $secret,
-                ],
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT => 30,
-                CURLOPT_CONNECTTIMEOUT => 10,
-            ]);
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $error = curl_error($ch);
-            curl_close($ch);
+        $bodyHtml = $this->buildEmailHtml($date, $appEnv, $summary, $verify);
 
-            if ($error) {
-                $this->warn("Gagal POST ke hosting: {$error}");
-                Log::warning('invoice:generate-daily-v2 post failed', [
-                    'url' => $url,
-                    'error' => $error,
-                    'date' => $date,
+        $emails = array_map('trim', explode(',', $recipients));
+        foreach ($emails as $email) {
+            if (empty($email)) {
+                continue;
+            }
+
+            try {
+                DB::connection('mysql_prod')->table('Trx_email_queue')->insert([
+                    'recipient' => $email,
+                    'subject' => $subject,
+                    'body_html' => $bodyHtml,
+                    'status' => 'pending',
+                    'created_at' => now(),
                 ]);
-            } else {
-                $this->info("Laporan dikirim ke hosting [HTTP {$httpCode}]");
-                Log::info('invoice:generate-daily-v2 report sent to hosting', [
-                    'url' => $url,
-                    'http_code' => $httpCode,
-                    'response' => $response,
+                $this->info("Laporan di-queue ke production DB untuk {$email}");
+            } catch (Throwable $e) {
+                $this->warn("Gagal queue email untuk {$email}: " . $e->getMessage());
+                Log::warning('invoice:generate-daily-v2 queue failed', [
+                    'email' => $email,
                     'date' => $date,
+                    'message' => $e->getMessage(),
                 ]);
             }
-        } catch (Throwable $e) {
-            $this->warn("Gagal kirim laporan: " . $e->getMessage());
-            Log::warning('invoice:generate-daily-v2 report failed', [
-                'date' => $date,
-                'message' => $e->getMessage(),
-            ]);
         }
+    }
+
+    /**
+     * Bangun HTML body untuk email laporan.
+     */
+    protected function buildEmailHtml($date, $env, $summary, $verify)
+    {
+        $total = $summary->total_candidate ?? 0;
+        $created = $summary->created_count ?? 0;
+        $skipped = $summary->skipped_existing ?? 0;
+        $failed = $summary->failed_count ?? 0;
+        $verifyTotal = $verify->total_candidates ?? 0;
+        $hasInvoice = $verify->already_has_invoice ?? 0;
+        $missing = $verify->still_missing_invoice ?? 0;
+
+        return <<<HTML
+<!DOCTYPE html>
+<html lang="id">
+<head><meta charset="UTF-8"><title>Laporan Generate Invoice Harian V2</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 14px; color: #333; }
+  h2 { color: #2563eb; }
+  .summary { background: #f0fdf4; padding: 12px; border-radius: 6px; margin-bottom: 16px; }
+  .item { display: inline-block; margin-right: 24px; }
+  .val { font-size: 20px; font-weight: bold; color: #2563eb; }
+  .created { color: #16a34a; } .skipped { color: #d97706; } .failed { color: #dc2626; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
+  th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+  th { background-color: #f3f4f6; }
+  .footer { font-size: 12px; color: #999; margin-top: 24px; border-top: 1px solid #eee; padding-top: 12px; }
+</style>
+</head>
+<body>
+<h2>Laporan Generate Invoice Harian V2</h2>
+<p>Jakarta, {$date}</p>
+<p>Kepada Yth.<br>Tim Admin Media Prima Jaringan<br>Di Tempat.</p>
+<p>Berikut ringkasan hasil proses generate invoice harian v2 tanggal <strong>{$date}</strong>:</p>
+
+<div class="summary">
+  <div class="item">Total Kandidat<br><span class="val">{$total}</span></div>
+  <div class="item"><span class="created">Invoice Baru</span><br><span class="val created">{$created}</span></div>
+  <div class="item"><span class="skipped">Sudah Ada</span><br><span class="val skipped">{$skipped}</span></div>
+  <div class="item"><span class="failed">Gagal</span><br><span class="val failed">{$failed}</span></div>
+</div>
+
+<h3>Verifikasi</h3>
+<table>
+  <tr><td>Total Kandidat</td><td><strong>{$verifyTotal}</strong></td></tr>
+  <tr><td>Sudah Punya Invoice</td><td>{$hasInvoice}</td></tr>
+  <tr><td>Still Missing</td><td style="color: " . ({$missing} > 0 ? '#dc2626' : '#16a34a') . ";">{$missing}</td></tr>
+</table>
+
+<div class="footer">
+  <p>Proses dijalankan otomatis oleh scheduler BOS MPJ v2 (05:45 WIB).<br>Environment: {$env}</p>
+  <p>Hormat kami,<br><strong>Billing Media Prima Jaringan</strong></p>
+</div>
+</body>
+</html>
+HTML;
     }
 }

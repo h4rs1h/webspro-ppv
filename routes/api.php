@@ -33,3 +33,4 @@ Route::get('/bos/getNotifTermin',[AdminProsesOnSistemController::class,'getKirim
 Route::get('/bos/send-ginv-mail',[AdminProsesOnSistemController::class,'getPinvKirimEmail']);
 Route::get('/bos/send-mail',[AdminProsesOnSistemController::class,'getKirimEmail']);
 Route::post('/bos/send-invoice-report-v2',[AdminProsesOnSistemController::class,'postInvoiceReportV2']);
+Route::get('/bos/process-email-queue',[AdminProsesOnSistemController::class,'getProcessEmailQueue']);
