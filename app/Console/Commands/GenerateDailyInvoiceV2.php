@@ -82,6 +82,11 @@ class GenerateDailyInvoiceV2 extends Command
 
         $bodyHtml = $this->buildEmailHtml($date, $appEnv, $summary, $verify);
 
+        $prodHost = env('DB_PROD_HOST', '103.229.73.45');
+        $prodDb = env('DB_PROD_DATABASE', 'dbbosmpj');
+        $prodUser = env('DB_PROD_USERNAME', 'bosmpj');
+        $prodPass = env('DB_PROD_PASSWORD', '');
+
         $emails = array_map('trim', explode(',', $recipients));
         foreach ($emails as $email) {
             if (empty($email)) {
@@ -89,15 +94,21 @@ class GenerateDailyInvoiceV2 extends Command
             }
 
             try {
-                DB::connection('mysql_prod')->table('Trx_email_queue')->insert([
-                    'recipient' => $email,
-                    'subject' => $subject,
-                    'body_html' => $bodyHtml,
-                    'status' => 'pending',
-                    'created_at' => now(),
-                ]);
+                $pdo = new \PDO(
+                    "mysql:host={$prodHost};port=3306;dbname={$prodDb};charset=utf8mb4",
+                    $prodUser,
+                    $prodPass,
+                    [\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION]
+                );
+
+                $stmt = $pdo->prepare(
+                    'INSERT INTO Trx_email_queue (recipient, subject, body_html, status, created_at) VALUES (?, ?, ?, ?, ?)'
+                );
+                $stmt->execute([$email, $subject, $bodyHtml, 'pending', now()->toDateTimeString()]);
+
                 $this->info("Laporan di-queue ke production DB untuk {$email}");
-            } catch (Throwable $e) {
+                Log::info('invoice:generate-daily-v2 queue inserted', ['email' => $email, 'date' => $date]);
+            } catch (\Throwable $e) {
                 $this->warn("Gagal queue email untuk {$email}: " . $e->getMessage());
                 Log::warning('invoice:generate-daily-v2 queue failed', [
                     'email' => $email,
@@ -108,9 +119,6 @@ class GenerateDailyInvoiceV2 extends Command
         }
     }
 
-    /**
-     * Bangun HTML body untuk email laporan.
-     */
     protected function buildEmailHtml($date, $env, $summary, $verify)
     {
         $total = $summary->total_candidate ?? 0;
