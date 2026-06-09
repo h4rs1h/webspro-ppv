@@ -22,28 +22,28 @@
 <body>
 
     <h2>📊 Laporan Generate Invoice Harian V2</h2>
-    <p>Jakarta, {{ ['date'] }}</p>
+    <p>Jakarta, {{ $report['date'] ?? '-' }}</p>
 
     <p>Kepada Yth.<br>Tim Admin Media Prima Jaringan<br>Di Tempat.</p>
 
-    <p>Berikut ringkasan hasil proses generate invoice harian v2 pada tanggal <strong>{{ ['date'] }}</strong>:</p>
+    <p>Berikut ringkasan hasil proses generate invoice harian v2 pada tanggal <strong>{{ $report['date'] ?? '-' }}</strong>:</p>
 
     <div class="summary">
         <div class="summary-item">
             Total Kandidat<br>
-            <span class="summary-value">{{ ['summary']['total_candidate'] ?? '-' }}</span>
+            <span class="summary-value">{{ $report['summary']['total_candidate'] ?? '-' }}</span>
         </div>
         <div class="summary-item">
             <span class="created">Invoice Baru</span><br>
-            <span class="summary-value created">{{ ['summary']['created_count'] ?? '-' }}</span>
+            <span class="summary-value created">{{ $report['summary']['created_count'] ?? '-' }}</span>
         </div>
         <div class="summary-item">
             <span class="skipped">Sudah Ada</span><br>
-            <span class="summary-value skipped">{{ ['summary']['skipped_existing'] ?? '-' }}</span>
+            <span class="summary-value skipped">{{ $report['summary']['skipped_existing'] ?? '-' }}</span>
         </div>
         <div class="summary-item">
             <span class="failed">Gagal</span><br>
-            <span class="summary-value failed">{{ ['summary']['failed_count'] ?? '-' }}</span>
+            <span class="summary-value failed">{{ $report['summary']['failed_count'] ?? '-' }}</span>
         </div>
     </div>
 
@@ -51,35 +51,35 @@
     <table>
         <tr>
             <td>Total Kandidat</td>
-            <td><strong>{{ ['verify']['total_candidates'] ?? '-' }}</strong></td>
+            <td><strong>{{ $report['verify']['total_candidates'] ?? '-' }}</strong></td>
         </tr>
         <tr>
             <td>Sudah Punya Invoice</td>
-            <td>{{ ['verify']['already_has_invoice'] ?? '-' }}</td>
+            <td>{{ $report['verify']['already_has_invoice'] ?? '-' }}</td>
         </tr>
         <tr>
             <td>Masih Missing</td>
-            <td style="color: {{ (['verify']['still_missing_invoice'] ?? 0) > 0 ? '#dc2626' : '#16a34a' }};">
-                <strong>{{ ['verify']['still_missing_invoice'] ?? '-' }}</strong>
+            <td style="color: {{ ($report['verify']['still_missing_invoice'] ?? 0) > 0 ? '#dc2626' : '#16a34a' }};">
+                <strong>{{ $report['verify']['still_missing_invoice'] ?? '-' }}</strong>
             </td>
         </tr>
     </table>
 
-    @if(['summary']['created_count'] > 0)
+    @if(($report['summary']['created_count'] ?? 0) > 0)
     <h3>🆕 Invoice Baru Dibuat</h3>
-    <p style="color: #16a34a;">Sebanyak <strong>{{ ['summary']['created_count'] }}</strong> invoice baru berhasil dibuat.</p>
+    <p style="color: #16a34a;">Sebanyak <strong>{{ $report['summary']['created_count'] ?? 0 }}</strong> invoice baru berhasil dibuat.</p>
     @endif
 
-    @if(['summary']['failed_count'] > 0)
+    @if(($report['summary']['failed_count'] ?? 0) > 0)
     <h3>⚠️ Invoice Gagal</h3>
-    <p style="color: #dc2626;">Terdapat <strong>{{ ['summary']['failed_count'] }}</strong> invoice yang gagal dibuat. Mohon dicek.</p>
+    <p style="color: #dc2626;">Terdapat <strong>{{ $report['summary']['failed_count'] ?? 0 }}</strong> invoice yang gagal dibuat. Mohon dicek.</p>
     @endif
 
     <div class="footer">
         <p>
             Proses dijalankan otomatis oleh scheduler BOS MPJ v2 (05:45 WIB).<br>
-            Environment: {{ ['env'] ?? 'development' }}<br>
-            Mode: {{ ['dry_run'] ? 'dry-run (tidak menyimpan)' : 'execute (menyimpan)' }}
+            Environment: {{ $report['env'] ?? 'development' }}<br>
+            Mode: {{ ($report['dry_run'] ?? false) ? 'dry-run (tidak menyimpan)' : 'execute (menyimpan)' }}
         </p>
         <p>Hormat kami,<br><strong>Billing Media Prima Jaringan</strong></p>
     </div>
