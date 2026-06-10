@@ -10,28 +10,19 @@ class Kernel extends ConsoleKernel
 {
     /**
      * Define the application's command schedule.
-     *
-     * @param  \Illuminate\Console\Scheduling\Schedule  $schedule
-     * @return void
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
-         $schedule->command('invoice:generate-daily-v2')
+        $schedule->command('invoice:generate-daily-v2')
+            ->timezone('Asia/Jakarta')
             ->dailyAt('05:45')
             ->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/invoice-generate-daily-v2.log'));
     }
 
-    /**
-     * Register the commands for the application.
-     *
-     * @return void
-     */
     protected function commands()
     {
         $this->load(__DIR__.'/Commands');
-
         require base_path('routes/console.php');
     }
 }
