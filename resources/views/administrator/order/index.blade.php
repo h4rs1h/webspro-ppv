@@ -122,7 +122,11 @@
   <a href="/admin/trx_order/kirim_wa?no_order={{ $data->no_order }}&tipe_order={{ $data->tipe_order }}&tipe_wa=cuti" class="btn btn-success btn-circle">
                                                 <i class="fa fa-whatsapp"></i>
                                             </a>
-@if ($data->payment_status != '2')                                                <a href="#" onclick="batalCuti({{ $data->id }}, '{{ $data->pelanggan->sub_tower }}/{{ $data->pelanggan->lantai }}/{{ $data->pelanggan->nomer_unit }}', '{{ addslashes($data->pelanggan->nama_lengkap) }}')" class="btn btn-danger btn-circle" data-toggle="tooltip" title="Batalkan Cuti" style="margin-left:3px">                                                    <i class="fa fa-ban"></i>                                                </a>                                                @endif
+                                            @if ($data->payment_status != '2')
+                                            <a href="#" onclick="batalCuti({{ $data->id }}, '{{ $data->pelanggan->sub_tower }}/{{ $data->pelanggan->lantai }}/{{ $data->pelanggan->nomer_unit }}', '{{ addslashes($data->pelanggan->nama_lengkap) }}')" class="btn btn-danger btn-circle" data-toggle="tooltip" title="Batalkan Cuti" style="margin-left:2px">
+                                                <i class="fa fa-ban"></i>
+                                            </a>
+                                            @endif
                                         @elseif ($data->tipe_order=="5")
   <a href="/admin/trx_order/kirim_wa?no_order={{ $data->no_order }}&tipe_order={{ $data->tipe_order }}&tipe_wa=stop" class="btn btn-success btn-circle">
                                                 <i class="fa fa-whatsapp"></i>
@@ -157,15 +161,6 @@
     </div>
     <!-- /.col-lg-12 -->
 </div>
-@section('scripts')
-<script>
-function batalCuti(orderId, unit, nama) {
-    if (!confirm('Apakah Anda yakin membatalkan transaksi cuti?\n\n' + unit + ' : ' + nama)) return;
-
-    fetch('/admin/trx_order/batal_cuti', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
 
 <script>
 function batalCuti(orderId, unit, nama) {
@@ -191,5 +186,4 @@ function batalCuti(orderId, unit, nama) {
     .catch(err => alert('Gagal: ' + err.message));
 }
 </script>
-
 @endsection
