@@ -123,6 +123,7 @@ Route::get('/admin/trx_order/get', [AdminTrxOrderController::class,'getFormLayan
 Route::get('/admin/trx_order/termin', [AdminTrxOrderController::class,'getTagihanTermin']);
 Route::get('/admin/trx_order/kirim_wa/', [AdminTrxOrderController::class,'getKirimWaTagihanTermin']);
 Route::Post('/admin/trx_order/getdata', [AdminTrxOrderController::class,'getDataOrder']);
+Route::Post('/admin/trx_order/batal_cuti', [AdminTrxOrderController::class,'batalCuti']);
 
 //upgrade Layanan
 Route::get('/admin/trx_order/upgrade', [AdminTrxUpLayananController::class,'index']);
