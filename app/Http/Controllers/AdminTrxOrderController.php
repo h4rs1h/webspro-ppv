@@ -1444,8 +1444,32 @@ class AdminTrxOrderController extends Controller
             'title' =>  $title,
             'subtitle' => $subtitle,
             'filter' => $filter,
-    public function batalCuti(Request $request)    {        $trxOrderId = $request->input('trx_order_id');        $userId = auth()->id() ?? 1;        try {            $result = DB::select('CALL hr_v2_batal_transaksi_cuti_sp(?, ?)', [                $trxOrderId,                $userId            ]);            return response()->json([                'status'  => 'success',                'message' => $result[0]->message ?? 'Transaksi cuti berhasil dibatalkan'            ]);        } catch (Exception $e) {            return response()->json([                'status'  => 'error',                'message' => $e->getMessage()            ], 422);        }    }
             'tipe_order' => $tipeorder,
         ]);
     }
+
+    public function batalCuti(Request $request)
+    {
+        $trxOrderId = $request->input('trx_order_id');
+        $userId = auth()->id() ?? 1;
+
+        try {
+            $result = DB::select('CALL hr_v2_batal_transaksi_cuti_sp(?, ?)', [
+                $trxOrderId,
+                $userId
+            ]);
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => $result[0]->message ?? 'Transaksi cuti berhasil dibatalkan'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $e->getMessage()
+            ], 422);
+        }
+    }
+
 }
