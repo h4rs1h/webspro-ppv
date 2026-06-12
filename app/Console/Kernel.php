@@ -21,6 +21,17 @@ class Kernel extends ConsoleKernel
             ->everyFiveMinutes()
             ->withoutOverlapping(5)
             ->appendOutputTo(storage_path('logs/email-queue-process.log'));
+
+        // Process notif WA — setiap 2 menit (Issue #4)
+        $schedule->command('notif:process-wa')
+            ->everyTwoMinutes()
+            ->withoutOverlapping(3)
+            ->appendOutputTo(storage_path('logs/notif-wa-process.log'));
+
+        // Cleanup stuck notif — setiap jam (Issue #4)
+        $schedule->command('notif:cleanup-stuck')
+            ->hourly()
+            ->appendOutputTo(storage_path('logs/notif-wa-cleanup.log'));
     }
 
     protected function commands()
