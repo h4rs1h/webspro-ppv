@@ -27,6 +27,13 @@ class GenerateDailyInvoiceV2 extends Command
             $this->info("Generate invoice v2 selesai");
             $this->line(json_encode($generate, JSON_PRETTY_PRINT));
 
+            // Issue #4: Enqueue WA notification untuk invoice baru
+            if (! $dryRun) {
+                $enqueue = DB::select("CALL hr_v2_enqueue_batch_tagihan_sp(?)", [$date]);
+                $enq = $enqueue[0] ?? (object) ['enqueued' => 0, 'skipped_no_wa' => 0];
+                $this->info("Notif WA enqueued: {$enq->enqueued} sent, {$enq->skipped_no_wa} skipped (no WA)");
+            }
+
             $verify = DB::select("CALL hr_v2_verify_invoice_daily_target_sp(?)", [$date]);
             $this->info("Verify selesai");
             $this->line(json_encode($verify, JSON_PRETTY_PRINT));
