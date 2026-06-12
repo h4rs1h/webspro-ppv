@@ -16,7 +16,7 @@ class ProcessNotifWa extends Command
         $batchSize = (int) $this->option('batch');
 
         // Konfigurasi WA API (dari .env atau fallback ke existing key)
-        $waApiUrl = env('WOOWA_URL_SEND', 'http://116.203.191.58/api/') . 'send_message';
+        $waApiUrl = env('WOOWA_URL_SEND', 'https://notifapi.com/') . 'send_message';
         $waApiKey = env('WOOWA_KEY', '7102f062dcec2541d848cc70a215dc6bd78bfa8fe9b30d4f');
 
         // Ambil pending items via SP
