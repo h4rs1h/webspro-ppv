@@ -256,6 +256,12 @@ class PelangganViewInvoiceController extends Controller
 
         //simpan ke tabel trx_bayar
         $idBayar = TrxBayar::create($hdrTrxBayar)->id;
+        // Issue #4: Auto enqueue tanda terima
+        DB::statement('CALL hr_v2_enqueue_midtrans_notif_sp(?, ?, ?, ?, ?, ?)', [
+            $idBayar, $request->nomer_tagihan, $request->pelanggan_id,
+            $request->nominal_bayar, $request->tgl_bayar,
+            'Transfer Bank (Upload Bukti)'
+        ]);
 		// DB::select("call GetUpdExpDateFromBayar('".$idBayar."','2')");
 		
         $dtlInv = ViewTrxTagihanDtl::where('trx_tagihan_id',$request->trx_tagihan_id)->get();
@@ -318,6 +324,12 @@ class PelangganViewInvoiceController extends Controller
         if(!$cek){
             // dd($cek);
             $idBayar = TrxBayar::create($hdrTrxBayar)->id;
+            // Issue #4: Auto enqueue tanda terima
+            DB::statement('CALL hr_v2_enqueue_midtrans_notif_sp(?, ?, ?, ?, ?, ?)', [
+                $idBayar, $request->nomer_tagihan, $request->pelanggan_id,
+                $request->nominal_bayar, $request->tgl_bayar,
+                'Transfer Bank (Upload Bukti)'
+            ]);
 
             // $dtlInv = ViewTrxTagihanDtl::where('trx_tagihan_id',$request->trx_order_id)->get();
             $dtlInv = DB::table('vGetInvPendaftaran')
@@ -539,6 +551,12 @@ class PelangganViewInvoiceController extends Controller
         if(!$cek){
           //  dd($cek);
             $idBayar = TrxBayar::create($hdrTrxBayar)->id;
+            // Issue #4: Enqueue Midtrans notif
+            DB::statement('CALL hr_v2_enqueue_midtrans_notif_sp(?, ?, ?, ?, ?, ?)', [
+                $idBayar, $orderId[1], $trxtagih->pelanggan_id,
+                $trxtagih->gtot_tagihan, $notif->transaction_time,
+                'Midtrans (' . $type . ')'
+            ]);
 
             $dtlInv = ViewTrxTagihanDtl::where('trx_tagihan_id',$trxtagih->id)->get();
             foreach($dtlInv as $dt){
@@ -601,6 +619,12 @@ class PelangganViewInvoiceController extends Controller
         if(!$cek){
           //  dd($cek);
             $idBayar = TrxBayar::create($hdrTrxBayar)->id;
+            // Issue #4: Enqueue Midtrans notif
+            DB::statement('CALL hr_v2_enqueue_midtrans_notif_sp(?, ?, ?, ?, ?, ?)', [
+                $idBayar, $orderId[1], $trxtagih->pelanggan_id,
+                $trxtagih->gtot_tagihan, $notif->transaction_time,
+                'Midtrans (' . $type . ')'
+            ]);
 			// DB::select("call GetUpdExpDateFromBayar('".$idBayar."','2')");
             $dtlInv = ViewTrxTagihanDtl::where('trx_tagihan_id',$trxtagih->id)->get();
             foreach($dtlInv as $dt){

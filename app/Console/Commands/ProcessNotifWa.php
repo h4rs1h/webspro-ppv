@@ -15,9 +15,9 @@ class ProcessNotifWa extends Command
     {
         $batchSize = (int) $this->option('batch');
 
-        // Konfigurasi WA API (dari .env atau fallback ke existing key)
-        $waApiUrl = env('WOOWA_URL_SEND', 'https://notifapi.com/') . 'send_message';
-        $waApiKey = env('WOOWA_KEY', '7102f062dcec2541d848cc70a215dc6bd78bfa8fe9b30d4f');
+        // Konfigurasi WA API
+        $waApiUrl  = env('WOOWA_URL_SEND', 'https://notifapi.com/');
+        $waApiKey  = env('WOOWA_KEY', '7102f062dcec2541d848cc70a215dc6bd78bfa8fe9b30d4f');
 
         // Ambil pending items via SP
         $batch = DB::select('CALL hr_v2_process_notif_wa_sp(?)', [$batchSize]);
@@ -27,11 +27,18 @@ class ProcessNotifWa extends Command
             return 0;
         }
 
-        $sent = 0;
-        $failed = 0;
+        $sent    = 0;
+        $failed  = 0;
         $skipped = 0;
 
         foreach ($batch as $row) {
+            // === GROUP MESSAGE ===
+            if (!empty($row->group_id)) {
+                $this->processGroupMessage($row, $waApiUrl, $waApiKey, $sent, $failed);
+                continue;
+            }
+
+            // === PERSONAL MESSAGE ===
             // Skip jika no_wa invalid
             if (empty($row->no_wa) || strlen($row->no_wa) < 8) {
                 DB::statement('CALL hr_v2_update_notif_status_sp(?, ?, ?, ?)', [
@@ -45,22 +52,21 @@ class ProcessNotifWa extends Command
             }
 
             try {
-                // Kirim ke API woo-wa (matching pola existing MessageController)
                 $response = Http::withHeaders([
                     'Content-Type' => 'application/json',
                 ])->withOptions([
-                    'verify' => false,
+                    'verify'          => false,
                     'connect_timeout' => 10,
-                    'timeout' => 30,
-                ])->post($waApiUrl, [
+                    'timeout'         => 30,
+                ])->post($waApiUrl . 'send_message', [
                     'phone_no'  => $row->no_wa,
                     'message'   => $row->isi_pesan,
                     'key'       => $waApiKey,
                     'skip_link' => true,
                 ]);
 
-                // Deteksi sukses: HTTP 2xx + body "success" (pola woo-wa)
-                $body = trim($response->body());
+                // Deteksi sukses: HTTP 2xx + body "success"
+                $body      = trim($response->body());
                 $isSuccess = $response->successful()
                     && (stripos($body, 'success') !== false
                         || stripos($body, '"status":"success"') !== false
@@ -99,5 +105,53 @@ class ProcessNotifWa extends Command
 
         $this->info("Done: {$sent} sent, {$failed} failed, {$skipped} skipped");
         return 0;
+    }
+
+    /**
+     * Process WA message to a group.
+     */
+    protected function processGroupMessage($row, $waApiUrl, $waApiKey, &$sent, &$failed)
+    {
+        try {
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json',
+            ])->withOptions([
+                'verify'          => false,
+                'connect_timeout' => 10,
+                'timeout'         => 30,
+            ])->post($waApiUrl . 'send_message_group_id', [
+                'group_id' => $row->group_id,
+                'message'  => $row->isi_pesan,
+                'key'      => $waApiKey,
+            ]);
+
+            $body      = trim($response->body());
+            $isSuccess = $response->successful()
+                && (stripos($body, 'success') !== false
+                    || stripos($body, '"status":"success"') !== false
+                    || $body === 'success');
+
+            if ($isSuccess) {
+                DB::statement('CALL hr_v2_update_notif_status_sp(?, ?, ?, ?)', [
+                    $row->id, 'sent', $body, null,
+                ]);
+                $sent++;
+                $this->line("  ✅ #{$row->id} → Group: {$row->nama_penerima}");
+            } else {
+                DB::statement('CALL hr_v2_update_notif_status_sp(?, ?, ?, ?)', [
+                    $row->id, 'failed', $body,
+                    'Group API response: ' . substr($body, 0, 300),
+                ]);
+                $failed++;
+                $this->warn("  ❌ #{$row->id} Group: API non-success");
+            }
+        } catch (\Exception $e) {
+            DB::statement('CALL hr_v2_update_notif_status_sp(?, ?, ?, ?)', [
+                $row->id, 'failed', null,
+                substr($e->getMessage(), 0, 500),
+            ]);
+            $failed++;
+            $this->error("  💥 #{$row->id} Group: {$e->getMessage()}");
+        }
     }
 }
