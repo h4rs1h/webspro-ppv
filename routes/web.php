@@ -214,6 +214,7 @@ Route::get('/pelanggan/billing/{pelanggan}', [PelangganController::class,'getInv
 
 
 Route::get('/viewinvoice', [PelangganViewInvoiceController::class,'index']);
+Route::get("/data/t/{token}", [PelangganViewInvoiceController::class,"getByShortToken"]); // Issue #4 short URL
 Route::get('/data/{data_kwitansi}', [PelangganViewInvoiceController::class,'getViewKwitansi']);
 Route::get('/viewinvoice/download', [PelangganViewInvoiceController::class,'getInvoicePdf']);
 Route::post('/viewinvoice/tambah', [PelangganViewInvoiceController::class,'store_bukti_bayar']);

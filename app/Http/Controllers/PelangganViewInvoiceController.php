@@ -672,10 +672,37 @@ class PelangganViewInvoiceController extends Controller
         return;
     }
 	
+	// Issue #4: Short token URL untuk tanda terima
+	public function getByShortToken($token)
+    {
+        $result = DB::select('CALL hr_v2_lookup_short_token_sp(?)', [$token]);
+        
+        if (empty($result)) {
+            abort(404, 'Link tidak valid atau sudah kadaluarsa.');
+        }
+        
+        $row = $result[0];
+        $plain = $row->tipe . '&id=' . $row->id_bayar;
+        return $this->getViewKwitansi($plain);
+    }
+
 	public function getViewKwitansi($data_rahasia)
     {
 
-        $data = explode('&',Crypt::decrypt($data_rahasia)) ;
+                // Issue #4: Support plaintext & URL-encoded encrypted param
+        // URL-encode di ProcessNotifWa.php (rawurlencode) → decode di sini
+        try {
+            $decrypted = Crypt::decrypt(rawurldecode($data_rahasia));
+        } catch (\Exception $e) {
+            // Fallback: coba decrypted langsung (format lama), lalu plaintext
+            try {
+                $decrypted = Crypt::decrypt($data_rahasia);
+            } catch (\Exception $e2) {
+                $decrypted = $data_rahasia;
+            }
+        }
+
+        $data = explode('&', $decrypted);
         $tipe = $data[0];
         $id = explode('=',$data[1]);
 		if($tipe=="viewtagihantermin"){

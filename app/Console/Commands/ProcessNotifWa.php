@@ -15,11 +15,15 @@ class ProcessNotifWa extends Command
     {
         $batchSize = (int) $this->option('batch');
 
-        // Konfigurasi WA API
         $waApiUrl  = env('WOOWA_URL_SEND', 'https://notifapi.com/');
         $waApiKey  = env('WOOWA_KEY', '7102f062dcec2541d848cc70a215dc6bd78bfa8fe9b30d4f');
 
-        // Ambil pending items via SP
+        $devTestTo = env('WA_DEV_TEST_TO', null);
+        $controlGroupId = env('WA_CONTROL_GROUP_ID', 'GuX193tTrfZ9geD0oFKOPv');
+        if ($devTestTo) {
+            $this->warn("⚠️  DEV MODE: Semua WA personal diteruskan ke {$devTestTo}");
+        }
+
         $batch = DB::select('CALL hr_v2_process_notif_wa_sp(?)', [$batchSize]);
 
         if (empty($batch)) {
@@ -32,22 +36,29 @@ class ProcessNotifWa extends Command
         $skipped = 0;
 
         foreach ($batch as $row) {
+            // Replace placeholder: {TANDA_TERIMA:123} → short token URL
+            $pesan = $this->resolvePlaceholders($row);
+
             // === GROUP MESSAGE ===
-            if (!empty($row->group_id)) {
-                $this->processGroupMessage($row, $waApiUrl, $waApiKey, $sent, $failed);
+            if (!empty($row->group_id) || (($row->tipe_notif ?? null) === 'group_kontrol')) {
+                if (empty($row->group_id)) {
+                    $row->group_id = $controlGroupId;
+                }
+                $this->processGroupMessage($row, $waApiUrl, $waApiKey, $sent, $failed, $pesan);
                 continue;
             }
 
             // === PERSONAL MESSAGE ===
-            // Skip jika no_wa invalid
-            if (empty($row->no_wa) || strlen($row->no_wa) < 8) {
+            $targetNoWa = $devTestTo ?: $row->no_wa;
+            $isOverridden = $devTestTo && $targetNoWa !== $row->no_wa;
+
+            if (empty($targetNoWa) || strlen($targetNoWa) < 8) {
                 DB::statement('CALL hr_v2_update_notif_status_sp(?, ?, ?, ?)', [
-                    $row->id, 'failed',
-                    null,
-                    'Invalid WA number: ' . ($row->no_wa ?? 'empty'),
+                    $row->id, 'failed', null,
+                    'Invalid WA number: ' . ($targetNoWa ?? 'empty'),
                 ]);
                 $skipped++;
-                $this->warn("Skipped #{$row->id}: invalid no_wa='{$row->no_wa}'");
+                $this->warn("Skipped #{$row->id}: invalid no_wa='{$targetNoWa}'");
                 continue;
             }
 
@@ -59,13 +70,12 @@ class ProcessNotifWa extends Command
                     'connect_timeout' => 10,
                     'timeout'         => 30,
                 ])->post($waApiUrl . 'send_message', [
-                    'phone_no'  => $row->no_wa,
-                    'message'   => $row->isi_pesan,
+                    'phone_no'  => $targetNoWa,
+                    'message'   => $pesan,
                     'key'       => $waApiKey,
                     'skip_link' => true,
                 ]);
 
-                // Deteksi sukses: HTTP 2xx + body "success"
                 $body      = trim($response->body());
                 $isSuccess = $response->successful()
                     && (stripos($body, 'success') !== false
@@ -77,7 +87,8 @@ class ProcessNotifWa extends Command
                         $row->id, 'sent', $body, null,
                     ]);
                     $sent++;
-                    $this->line("  ✅ #{$row->id} → {$row->nama_penerima} ({$row->no_wa})");
+                    $label = $isOverridden ? "{$row->no_wa}→{$targetNoWa}" : $row->no_wa;
+                    $this->line("  ✅ #{$row->id} → {$row->nama_penerima} ({$label})");
                 } else {
                     DB::statement('CALL hr_v2_update_notif_status_sp(?, ?, ?, ?)', [
                         $row->id, 'failed', $body,
@@ -96,7 +107,6 @@ class ProcessNotifWa extends Command
             }
         }
 
-        // Log ke Trx_logProses
         DB::table('Trx_logProses')->insert([
             'tgl_proses' => now(),
             'proses'     => 'Process Notif WA',
@@ -108,10 +118,36 @@ class ProcessNotifWa extends Command
     }
 
     /**
-     * Process WA message to a group.
+     * Replace {TANDA_TERIMA:35404} → https://domain/data/t/{short_token}
+     * Token disimpan di hr_v2_short_token via SP.
      */
-    protected function processGroupMessage($row, $waApiUrl, $waApiKey, &$sent, &$failed)
+    protected function resolvePlaceholders($row)
     {
+        return preg_replace_callback(
+            '/\{TANDA_TERIMA:(\d+)\}/',
+            function ($matches) use ($row) {
+                $idBayar = (int) $matches[1];
+                $result = DB::select('CALL hr_v2_create_short_token_sp(?, ?, ?)', [
+                    $idBayar,
+                    'ttbayar',
+                    $row->pelanggan_id ?? null,
+                ]);
+                $token = $result[0]->token ?? null;
+                if ($token) {
+                    return url('/data/t/' . $token);
+                }
+                return url('/data/error');
+            },
+            $row->isi_pesan
+        );
+    }
+
+    protected function processGroupMessage($row, $waApiUrl, $waApiKey, &$sent, &$failed, $pesan = null)
+    {
+        if ($pesan === null) {
+            $pesan = $this->resolvePlaceholders($row);
+        }
+
         try {
             $response = Http::withHeaders([
                 'Content-Type' => 'application/json',
@@ -121,7 +157,7 @@ class ProcessNotifWa extends Command
                 'timeout'         => 30,
             ])->post($waApiUrl . 'send_message_group_id', [
                 'group_id' => $row->group_id,
-                'message'  => $row->isi_pesan,
+                'message'  => $pesan,
                 'key'      => $waApiKey,
             ]);
 
