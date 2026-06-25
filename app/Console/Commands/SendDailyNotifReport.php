@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Log;
 
 class SendDailyNotifReport extends Command
 {
-    protected $signature = 'notif:daily-report {--date= : Tanggal laporan (default: hari ini)}';
+    protected $signature = 'notif:daily-report {--date= : Tanggal laporan (default: hari ini)} {--no-email : Hanya tampilkan laporan tanpa queue email}';
     protected $description = 'Kirim laporan harian pengiriman notifikasi WA';
 
     public function handle()
@@ -17,8 +17,9 @@ class SendDailyNotifReport extends Command
 
         $this->info("Generating daily WA notification report for {$date}");
 
-        // Ringkasan harian
-        $summary = DB::select("CALL hr_v2_daily_notif_report_sp(?)", [$date]);
+        // Ringkasan harian WA harus diambil dari database production,
+        // termasuk saat command dijalankan dari server dev.
+        $summary = $this->getProdNotifSummary($date);
 
         if (empty($summary)) {
             $this->warn("No data for {$date}");
@@ -43,11 +44,16 @@ class SendDailyNotifReport extends Command
         $this->line("──────────────────────────────────────");
 
         // Queue email laporan ke production DB
-        $this->queueReportEmail($date, $row);
+        if ($this->option('no-email')) {
+            $this->warn('Mode --no-email: laporan tidak dimasukkan ke queue email.');
+        } else {
+            $this->queueReportEmail($date, $row);
+        }
 
         // Log
         Log::info('notif:daily-report', [
             'date'    => $date,
+            'data_source' => 'production',
             'total'   => $total,
             'sent'    => $terkirim,
             'pending' => $pending,
@@ -63,10 +69,82 @@ class SendDailyNotifReport extends Command
         return self::SUCCESS;
     }
 
+
+    protected function getProdNotifSummary($date)
+    {
+        $pdo = $this->getProdPdo();
+
+        try {
+            $stmt = $pdo->prepare('CALL hr_v2_daily_notif_report_sp(?)');
+            $stmt->execute([$date]);
+            return $stmt->fetchAll(\PDO::FETCH_OBJ);
+        } catch (\PDOException $e) {
+            // Production belum tentu punya SP report; fallback ke query langsung
+            // agar laporan tetap memakai data production.
+            if (($e->errorInfo[1] ?? null) != 1305) {
+                throw $e;
+            }
+        }
+
+        if ($this->prodTableExists($pdo, 'hr_v2_notif_queue')) {
+            $stmt = $pdo->prepare(<<<SQL
+SELECT
+    ? AS tanggal,
+    COUNT(*) AS total,
+    SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) AS terkirim,
+    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
+    SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) AS processing,
+    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS gagal
+FROM hr_v2_notif_queue
+WHERE DATE(created_at) = ?
+SQL);
+            $stmt->execute([$date, $date]);
+            return $stmt->fetchAll(\PDO::FETCH_OBJ);
+        }
+
+        $stmt = $pdo->prepare(<<<SQL
+SELECT
+    ? AS tanggal,
+    COUNT(*) AS total,
+    SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) AS terkirim,
+    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
+    SUM(CASE WHEN status = 'proses' THEN 1 ELSE 0 END) AS processing,
+    SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS gagal
+FROM trx_sending
+WHERE DATE(created_at) = ?
+SQL);
+        $stmt->execute([$date, $date]);
+        return $stmt->fetchAll(\PDO::FETCH_OBJ);
+    }
+
+
+    protected function prodTableExists(\PDO $pdo, $tableName)
+    {
+        $stmt = $pdo->prepare('SHOW TABLES LIKE ?');
+        $stmt->execute([$tableName]);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    protected function getProdPdo()
+    {
+        $prodHost = env('DB_PROD_HOST', '103.229.73.45');
+        $prodDb   = env('DB_PROD_DATABASE', 'dbbosmpj');
+        $prodUser = env('DB_PROD_USERNAME', 'bosmpj');
+        $prodPass = env('DB_PROD_PASSWORD', '');
+
+        return new \PDO(
+            "mysql:host={$prodHost};port=3306;dbname={$prodDb};charset=utf8mb4",
+            $prodUser,
+            $prodPass,
+            [\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION]
+        );
+    }
+
     protected function queueReportEmail($date, $summary)
     {
         $recipients = env('INVOICE_REPORT_EMAIL', 'hrsanto@gmail.com,harsih.hhr@gmail.com');
         $appEnv     = env('APP_ENV', 'development');
+        $dataSource = 'production';
 
         $total    = $summary->total ?? 0;
         $terkirim = $summary->terkirim ?? 0;
@@ -74,7 +152,7 @@ class SendDailyNotifReport extends Command
         $gagal    = $summary->gagal ?? 0;
         $persen   = $total > 0 ? round(($terkirim / $total) * 100, 1) : 0;
 
-        $subject = "Laporan Harian Notifikasi WA - {$date} [{$appEnv}]";
+        $subject = "Laporan Harian Notifikasi WA - {$date} [PROD DATA/{$appEnv}]";
 
         $bodyHtml = <<<HTML
 <!DOCTYPE html>
@@ -102,29 +180,19 @@ class SendDailyNotifReport extends Command
 </div>
 
 <div class="footer">
-  <p>Proses dijalankan otomatis oleh scheduler BOS MPJ v2 (18:00 WIB).<br>Environment: {$appEnv}</p>
+  <p>Proses dijalankan otomatis oleh scheduler BOS MPJ v2 (18:00 WIB).<br>Environment: {$appEnv}<br>Data source: {$dataSource} database</p>
   <p>Hormat kami,<br><strong>Billing Media Prima Jaringan</strong></p>
 </div>
 </body>
 </html>
 HTML;
 
-        $prodHost = env('DB_PROD_HOST', '103.229.73.45');
-        $prodDb   = env('DB_PROD_DATABASE', 'dbbosmpj');
-        $prodUser = env('DB_PROD_USERNAME', 'bosmpj');
-        $prodPass = env('DB_PROD_PASSWORD', '');
-
         $emails = array_map('trim', explode(',', $recipients));
         foreach ($emails as $email) {
             if (empty($email)) continue;
 
             try {
-                $pdo = new \PDO(
-                    "mysql:host={$prodHost};port=3306;dbname={$prodDb};charset=utf8mb4",
-                    $prodUser,
-                    $prodPass,
-                    [\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION]
-                );
+                $pdo = $this->getProdPdo();
                 $stmt = $pdo->prepare(
                     'INSERT INTO Trx_email_queue (recipient, subject, body_html, status, created_at) VALUES (?, ?, ?, ?, ?)'
                 );
