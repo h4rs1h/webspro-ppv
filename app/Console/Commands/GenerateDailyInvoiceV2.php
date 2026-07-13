@@ -20,6 +20,15 @@ class GenerateDailyInvoiceV2 extends Command
         $this->info("Mulai invoice:generate-daily-v2 | date={$date} | dry_run={$dryRun}");
 
         try {
+            $syncStartDate = '2026-06-01';
+
+            $syncNewRegistration = DB::select(
+                "CALL hr_v2_sync_new_registration_activation_sp(?, ?, ?)",
+                [$syncStartDate, $date, $dryRun]
+            );
+            $this->info("Sync pelanggan baru tipe_order=1 selesai");
+            $this->line(json_encode($syncNewRegistration, JSON_PRETTY_PRINT));
+
             DB::statement("CALL hr_v2_sync_expdate_sp(" . ($dryRun ? "TRUE" : "FALSE") . ")");
             $this->info("Sync exp_date selesai");
 
